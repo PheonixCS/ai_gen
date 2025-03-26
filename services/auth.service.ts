@@ -162,7 +162,7 @@ export class AuthService {
       const response = await apiClient.changePassword(email, code, newPassword);
       
       // Check if the response is successful
-      if (response.code === 200) {
+      if (response.code === 150 || response.code === 200 || response.reset_check === "success") {
         return {
           success: true,
           message: "Пароль успешно изменен"
