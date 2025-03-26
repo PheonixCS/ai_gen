@@ -166,9 +166,19 @@ export class ApiClient {
 
   async changePassword(email: string, code: string, newPassword: string): Promise<ApiResponse> {
     try {
+      // Validate that the code is not empty
+      if (!code || code.trim() === '') {
+        console.error('Empty verification code provided to changePassword');
+        return {
+          code: 400,
+          message: 'Verification code is required'
+        };
+      }
+
       let response;
       
       if (this.proxyEnabled) {
+        console.log('Using proxy API route for password change with code:', code);
         response = await fetch('/api/auth/reset-password', {
           method: 'POST',
           headers: {
@@ -176,14 +186,14 @@ export class ApiClient {
           },
           body: JSON.stringify({ 
             email, 
-            changeCode: code, // Ensure code is properly included in the JSON body
+            changeCode: code,
             password: newPassword 
           }),
         });
       } else {
         // Make sure code is properly encoded in the URL
         const url = `${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`;
-        console.log('Password change URL:', url); // Debug log to verify URL
+        console.log('Password change URL:', url);
         response = await fetch(url);
       }
       

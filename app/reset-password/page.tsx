@@ -11,6 +11,8 @@ type ResetStep = 'email' | 'verification' | 'new-password' | 'success';
 export default function ResetPassword() {
   const [currentStep, setCurrentStep] = useState<ResetStep>('email');
   const [email, setEmail] = useState('');
+  // Add state for verification code
+  const [verificationCode, setVerificationCode] = useState('');
   
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-white flex flex-col items-center justify-between p-4">
@@ -31,7 +33,10 @@ export default function ResetPassword() {
         {currentStep === 'verification' && (
           <VerificationForm 
             email={email}
-            onSuccess={() => setCurrentStep('new-password')}
+            onSuccess={(code) => {
+              setVerificationCode(code); // Store the verification code
+              setCurrentStep('new-password');
+            }}
             onBack={() => setCurrentStep('email')}
           />
         )}
@@ -39,6 +44,7 @@ export default function ResetPassword() {
         {currentStep === 'new-password' && (
           <NewPasswordForm 
             email={email}
+            verificationCode={verificationCode} // Pass the verification code
             onSuccess={() => setCurrentStep('success')}
             onBack={() => setCurrentStep('verification')}
           />

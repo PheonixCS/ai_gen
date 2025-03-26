@@ -4,11 +4,12 @@ import authService from "@/services/auth.service";
 
 interface NewPasswordFormProps {
   email: string;
+  verificationCode: string; // Add this prop
   onSuccess: () => void;
   onBack: () => void;
 }
 
-export default function NewPasswordForm({ email, onSuccess, onBack }: NewPasswordFormProps) {
+export default function NewPasswordForm({ email, verificationCode, onSuccess, onBack }: NewPasswordFormProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +33,7 @@ export default function NewPasswordForm({ email, onSuccess, onBack }: NewPasswor
     setIsSubmitting(true);
     
     try {
+      console.log(`Changing password for ${email} with verification code: ${verificationCode}`);
       const response = await authService.resetPassword(email, newPassword, confirmPassword);
       
       if (response.success) {

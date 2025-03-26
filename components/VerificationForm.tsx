@@ -4,7 +4,7 @@ import authService from "@/services/auth.service";
 
 interface VerificationFormProps {
   email: string;
-  onSuccess: () => void;
+  onSuccess: (code: string) => void; // Modified to accept the verification code
   onBack: () => void;
 }
 
@@ -42,7 +42,7 @@ export default function VerificationForm({ email, onSuccess, onBack }: Verificat
       const response = await authService.verifyCode(email, verificationCode);
       
       if (response.success) {
-        onSuccess();
+        onSuccess(verificationCode); // Pass the verification code to parent component
       } else {
         setError(response.message || "Неверный код. Попробуйте снова.");
       }
