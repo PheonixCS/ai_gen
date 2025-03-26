@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     
     // Call the external API
     const response = await fetch(
-      `https://krazu-group.tech/imageni_clean/api_reg.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`,
+      `http://193.188.23.43/imageni_clean/api_reg.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`,
       { cache: 'no-store' }
     );
     

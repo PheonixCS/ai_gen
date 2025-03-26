@@ -10,7 +10,7 @@ export default function ApiDebugger() {
   const testDirectApi = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://krazu-group.tech/imageni_clean/api_log.php?em=user@user.com&pass=123123123');
+      const response = await fetch('http://193.188.23.43/imageni_clean/api_log.php?em=user@user.com&pass=123123123');
       const text = await response.text();
       setResult(`Status: ${response.status}\nResponse: ${text}`);
     } catch (error) {

@@ -2,7 +2,7 @@ export class ApiClient {
   private baseUrl: string;
   private proxyEnabled: boolean;
 
-  constructor(baseUrl: string = 'https://krazu-group.tech/imageni_clean', proxyEnabled: boolean = true) {
+  constructor(baseUrl: string = 'http://193.188.23.43/imageni_clean', proxyEnabled: boolean = true) {
     this.baseUrl = baseUrl;
     this.proxyEnabled = proxyEnabled;
   }
