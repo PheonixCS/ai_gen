@@ -4,7 +4,7 @@ import authService from "@/services/auth.service";
 
 interface NewPasswordFormProps {
   email: string;
-  verificationCode: string; // Add this prop
+  verificationCode: string;
   onSuccess: () => void;
   onBack: () => void;
 }
@@ -34,7 +34,8 @@ export default function NewPasswordForm({ email, verificationCode, onSuccess, on
     
     try {
       console.log(`Changing password for ${email} with verification code: ${verificationCode}`);
-      const response = await authService.resetPassword(email, newPassword, confirmPassword);
+      // Pass the verification code as the second parameter
+      const response = await authService.resetPassword(email, verificationCode, newPassword);
       
       if (response.success) {
         onSuccess();
@@ -42,6 +43,7 @@ export default function NewPasswordForm({ email, verificationCode, onSuccess, on
         setError(response.message || "Не удалось обновить пароль. Попробуйте снова.");
       }
     } catch (err) {
+      console.error("Password reset error:", err);
       setError("Произошла ошибка. Попробуйте снова.");
     } finally {
       setIsSubmitting(false);

@@ -156,34 +156,29 @@ export class AuthService {
   }
 
   // Reset the password with new password
-  async resetPassword(email: string, newPassword: string, confirmPassword: string): Promise<AuthResponse> {
-    // Check if passwords match locally first
-    if (newPassword !== confirmPassword) {
-      return { success: false, message: 'Пароли не совпадают' };
-    }
-    
-    // Get verification code from local storage - in a real app this would come from user input
-    const code = this.verificationCodes[email] || '';
-    
+  async resetPassword(email: string, code: string, newPassword: string): Promise<AuthResponse> {
     try {
+      // Make sure all parameters are passed to the API client changePassword method
       const response = await apiClient.changePassword(email, code, newPassword);
       
-      // Handle API response codes
-      switch (response.code) {
-        case 150:
-          // Clear the verification code after successful reset
-          delete this.verificationCodes[email];
-          return { success: true, message: 'Пароль успешно изменен' };
-        case 10:
-          return { success: false, message: 'Время действия кода истекло. Запросите новый код' };
-        case 99:
-          return { success: false, message: 'Неверный код подтверждения' };
-        default:
-          return { success: false, message: 'Произошла ошибка при смене пароля' };
+      // Check if the response is successful
+      if (response.code === 200) {
+        return {
+          success: true,
+          message: "Пароль успешно изменен"
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || "Не удалось изменить пароль"
+        };
       }
     } catch (error) {
-      console.error('Password reset error:', error);
-      return { success: false, message: 'Произошла ошибка при соединении с сервером' };
+      console.error("Reset password error:", error);
+      return {
+        success: false,
+        message: "Произошла ошибка при изменении пароля"
+      };
     }
   }
 
