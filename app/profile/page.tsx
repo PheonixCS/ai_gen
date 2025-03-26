@@ -107,16 +107,78 @@ export default function ProfilePage() {
 
         {/* Current Plan */}
         <section className="bg-[#151515] rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Ваш текущий план</h2>
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`text-lg font-bold ${currentPlan === 'free' ? 'text-white' : 'bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]'}`}>
-              {currentPlan === 'free' ? 'Бесплатный план' : 'PRO план'}
-            </div>
-            {currentPlan === 'pro' && (
-              <div className="px-2 py-1 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black text-xs font-bold rounded">
-                Активен
+          <h2 className="text-xl font-semibold mb-6">Ваш текущий план</h2>
+          
+          <div className="border border-white/10 rounded-xl p-6 relative overflow-hidden">
+            {/* Background gradient effect */}
+            <div className={`absolute inset-0 opacity-10 ${
+              currentPlan === 'pro' 
+                ? 'bg-gradient-to-br from-[#58E877]/20 to-[#FFFBA1]/20' 
+                : ''
+            }`}></div>
+            
+            <div className="flex items-start gap-5 relative z-10">
+              {/* Diamond icon */}
+              <div className={`p-3 rounded-lg ${
+                currentPlan === 'pro'
+                  ? 'bg-gradient-to-br from-[#58E877]/20 to-[#FFFBA1]/20'
+                  : 'bg-white/5'
+              }`}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path 
+                    d="M2.5 8H21.5M5.2 3H18.8C19.9201 3 20.4802 3 20.908 3.21799C21.2843 3.40973 21.5903 3.71569 21.782 4.09202C22 4.51984 22 5.07989 22 6.2V8.8C22 9.9201 22 10.4802 21.782 10.908C21.5903 11.2843 21.2843 11.5903 20.908 11.782C20.4802 12 19.9201 12 18.8 12H5.2C4.0799 12 3.51984 12 3.09202 11.782C2.71569 11.5903 2.40973 11.2843 2.21799 10.908C2 10.4802 2 9.9201 2 8.8V6.2C2 5.07989 2 4.51984 2.21799 4.09202C2.40973 3.71569 2.71569 3.40973 3.09202 3.21799C3.51984 3 4.0799 3 5.2 3Z" 
+                    stroke={currentPlan === 'pro' ? "#FFFBA1" : "#FFFFFF"} 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                  <path 
+                    d="M22 7L12 17L2 7" 
+                    stroke={currentPlan === 'pro' ? "#58E877" : "#FFFFFF"} 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
-            )}
+              
+              <div className="flex-1">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <h3 className={`text-xl font-bold ${
+                      currentPlan === 'pro' 
+                        ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]' 
+                        : 'text-white'
+                    }`}>
+                      {currentPlan === 'free' ? 'Бесплатный план' : 'PRO план'}
+                    </h3>
+                    <p className="text-sm text-white/50 mt-1">
+                      {currentPlan === 'free' 
+                        ? '10 сохранений в день' 
+                        : 'Безлимитные сохранения'}
+                    </p>
+                  </div>
+                  
+                  {currentPlan === 'pro' && (
+                    <div className="px-3 py-1 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black text-xs font-bold rounded-full">
+                      Активен
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4">
+                  <button 
+                    onClick={() => currentPlan === 'free' 
+                      ? router.push('/pricing') 
+                      : alert('Вы уже используете PRO план')
+                    }
+                    className="text-sm font-medium hover:underline text-white/70 hover:text-white/90 transition-colors"
+                  >
+                    {currentPlan === 'free' ? 'Обновить до PRO' : 'Управление подпиской'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           
           {/* Plan comparison table */}
