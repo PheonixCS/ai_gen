@@ -174,10 +174,17 @@ export class ApiClient {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, changeCode: code, password: newPassword }),
+          body: JSON.stringify({ 
+            email, 
+            changeCode: code, // Ensure code is properly included in the JSON body
+            password: newPassword 
+          }),
         });
       } else {
-        response = await fetch(`${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`);
+        // Make sure code is properly encoded in the URL
+        const url = `${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`;
+        console.log('Password change URL:', url); // Debug log to verify URL
+        response = await fetch(url);
       }
       
       const data = await response.json();
