@@ -80,7 +80,7 @@ export class AIGenerationService {
    * @param params Параметры генерации изображения
    * @returns Информация о сгенерированном изображении
    */
-  async generateImageForCurrentUser(params: GenerateImageParams): Promise<ApiImagesResponse> {
+  async generateImageForCurrentUser(params: GenerateImageParams): Promise<GeneratedImage> {
     const currentUser = authService.getCurrentUser();
     const password = authService.getUserPassword();
     
@@ -102,7 +102,7 @@ export class AIGenerationService {
     params: GenerateImageParams,
     email: string, 
     password: string
-  ): Promise<ApiImagesResponse> {
+  ): Promise<GeneratedImage> {
     try {
       // Используем ApiClient для взаимодействия с прокси-сервером
       const response = await apiClient.generateImage({
@@ -115,7 +115,7 @@ export class AIGenerationService {
         throw new Error('No response from API');
       }
       
-      return response as ApiImagesResponse;
+      return response as GeneratedImage;
     } catch (error) {
       console.error('Error generating image:', error);
       throw error;

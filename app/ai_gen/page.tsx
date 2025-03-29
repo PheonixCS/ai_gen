@@ -43,15 +43,15 @@ export default function GenerateImagePage() {
       // }
       // Вариант 2: API вернул массив изображений
       console.log('Generated image data:', image);
-      if (image.images && image.images.length > 0) {
+      if (image.image_url) {
         // Берем последнее изображение из списка (самое свежее)
-        const lastImage = image.images[image.images.length - 1];
-        const imageId = lastImage.id || lastImage.img_id;
-        const format = lastImage.format || 'png';
-        const userId = image.user_id;
+        // const lastImage = image.images[image.images.length - 1];
+        // const imageId = lastImage.id || lastImage.img_id;
+        // const format = lastImage.format || 'png';
+        // const userId = image.user_id;
         
         // Формируем URL для доступа к изображению
-        imageUrl = `${config.domain}/db/img/${userId}/${imageId}.${format}`;
+        imageUrl = `${config.domain}${image.image_url}`;
         setGeneratedImageUrl(imageUrl);
       } 
       else {

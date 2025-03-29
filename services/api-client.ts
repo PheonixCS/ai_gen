@@ -1,5 +1,5 @@
 import apiConfig from '../config/api-config';
-import { ApiImagesResponse } from './ai_gen.service';
+import { ApiImagesResponse, GeneratedImage } from './ai_gen.service';
 import {
   BaseResponse,
   GenerateImageResponse,
@@ -230,7 +230,7 @@ export class ApiClient {
     em: string;
     pass: string;
     uid?: string;
-  }): Promise<ApiImagesResponse> {
+  }): Promise<GeneratedImage> {
     try {
       let response;
       
