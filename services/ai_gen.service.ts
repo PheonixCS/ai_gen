@@ -368,8 +368,8 @@ export class AIGenerationService {
           
           // Construct the URL based on the image ID and user ID
           // const imageUrl = `https://imageni.ai/db/img/${response.user_id}/${latestImage.img_id || latestImage.id}.${latestImage.format || 'webp'}`;
-          const imageUrl = config.domain + '/db/img/' + response.user_id + '/' + latestImage.img_id || latestImage.id + '.' + (latestImage.format || 'webp');
-          
+          const imageUrl = config.domain + '/db/img/' + response.user_id + '/' + latestImage.img_id || latestImage.id + '.' + latestImage.format;
+          console.log(latestImage);
           return {
             image_id: latestImage.img_id || latestImage.id,
             image_url: imageUrl,
