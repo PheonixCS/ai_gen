@@ -1,3 +1,4 @@
+import apiConfig from '../config/api-config';
 import {
   BaseResponse,
   GenerateImageResponse,
@@ -9,7 +10,7 @@ export class ApiClient {
   private baseUrl: string;
   private proxyEnabled: boolean;
 
-  constructor(baseUrl: string = 'http://193.188.23.43/imageni_clean', proxyEnabled: boolean = true) {
+  constructor(baseUrl: string = apiConfig.domain, proxyEnabled: boolean = apiConfig.proxyEnabled) {
     this.baseUrl = baseUrl;
     this.proxyEnabled = proxyEnabled;
   }
@@ -61,7 +62,7 @@ export class ApiClient {
       } else {
         // Direct API call (will have CORS issues in browser)
         console.log('Using direct API call for login');
-        response = await fetch(`${this.baseUrl}/api_log.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.login}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
       }
       
       const data = await response.json();
@@ -98,7 +99,7 @@ export class ApiClient {
         });
       } else {
         // Direct API call
-        response = await fetch(`${this.baseUrl}/api_reg.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.register}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
       }
       
       const data = await response.json();
@@ -128,7 +129,7 @@ export class ApiClient {
           body: JSON.stringify({ email }),
         });
       } else {
-        response = await fetch(`${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}`);
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}`);
       }
       
       const data = await response.json();
@@ -156,7 +157,7 @@ export class ApiClient {
           body: JSON.stringify({ email, checkCode: code }),
         });
       } else {
-        response = await fetch(`${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}&check_code=${encodeURIComponent(code)}`);
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}&check_code=${encodeURIComponent(code)}`);
       }
       
       const data = await response.json();
@@ -199,7 +200,7 @@ export class ApiClient {
         });
       } else {
         // Make sure code is properly encoded in the URL
-        const url = `${this.baseUrl}/api_reset.php?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`;
+        const url = `${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`;
         console.log('Password change URL:', url);
         response = await fetch(url);
       }
@@ -253,7 +254,7 @@ export class ApiClient {
       } else {
         // Прямой вызов API (будут проблемы с CORS в браузере)
         console.log('Using direct API call for image generation');
-        response = await fetch(`${this.baseUrl}/api_generate.php`, {
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.generateImage}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -305,7 +306,7 @@ export class ApiClient {
       } else {
         // Прямой вызов API (будут проблемы с CORS в браузере)
         console.log('Using direct API call for getting user images');
-        response = await fetch(`${this.baseUrl}/api_img.php`, {
+        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.userImages}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
