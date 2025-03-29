@@ -1,6 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ShareIcon from '@mui/icons-material/Share';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 import Image from 'next/image';
 import { aiGenerationService, ApiImagesResponse } from '@/services/ai_gen.service';
 import AspectRatioSelector from '@/components/AspectRatioSelector';
@@ -143,7 +147,7 @@ export default function GenerateImagePage() {
               <p className="text-white/70">Генерация изображения...</p>
             </div>
           ) : generatedImageUrl ? (
-            <div className="w-full h-full">
+            <div className="w-full h-full relative">
               <img
                 src={generatedImageUrl}
                 alt="Generated image"
@@ -160,17 +164,25 @@ export default function GenerateImagePage() {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="bg-[#58E877] text-white px-4 py-2 rounded-lg hover:bg-[#46D76B] transition-colors"
+                  className="group text-white px-4 py-2 rounded-lg transition-colors hover:bg-white/10"
                 >
-                  Скачать
+                  <CloudDownloadIcon className="group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r from-[#58E877] to-[#FFFBA1]" />
                 </button>
                 <button 
-                  onClick={() => alert('Поделиться функцией пока нет')}
-                  className="bg-[#58E877] text-white px-4 py-2 rounded-lg hover:bg-[#46D76B] transition-colors"
+                  onClick={() => {
+                    if (generatedImageUrl) {
+                      navigator.clipboard.writeText(generatedImageUrl)
+                        .then(() => alert('Ссылка скопирована в буфер обмена!'))
+                        .catch(() => alert('Не удалось скопировать ссылку'));
+                    } else {
+                      alert('Изображение не готово для sharing');
+                    }
+                  }}
+                  className="group text-white px-4 py-2 rounded-lg transition-colors hover:bg-white/10"
                 >
-                  Поделиться
+                  <ShareIcon className="group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r from-[#58E877] to-[#FFFBA1]" />
                 </button>
-             </div>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-8">
