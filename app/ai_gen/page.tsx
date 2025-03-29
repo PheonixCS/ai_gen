@@ -197,21 +197,15 @@ export default function GenerateImagePage() {
             </button>
           )}
         </div>
-        {/* Aspect ratio selector - only shown when toggled */}
-        {showAspectRatioSelector && (
-          <AspectRatioSelector
-            selectedRatio={selectedAspectRatio}
-            onSelectRatio={handleAspectRatioChange}
-            className="my-2 border-t border-b border-white/5"
-          />
-        )}
+        
         
         {/* Bottom tools row with text */}
         <div className="max-w-3xl mx-auto px-4 pt-2 border-t border-white/10">
           <div className="flex items-start overflow-x-auto space-x-6 py-2 no-scrollbar">
             {/* Generate Photo tool - removed border for selected tool */}
             <button 
-              onClick={() => handleToolChange('generate')} 
+              // onClick={() => handleToolChange('generate')} 
+              onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
               className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'} focus:outline-none`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
@@ -245,7 +239,14 @@ export default function GenerateImagePage() {
               </svg>
               <span className={`text-xs ${activeTool === 'generate' ? 'text-white' : 'text-white/70'}`}>Генерация<br/>фото</span>
             </button>
-            
+            {/* Aspect ratio selector - only shown when toggled */}
+            {showAspectRatioSelector && (
+              <AspectRatioSelector
+                selectedRatio={selectedAspectRatio}
+                onSelectRatio={handleAspectRatioChange}
+                className="my-2 border-t border-b border-white/5"
+              />
+            )}
             {/* Enhance Photo tool - disabled */}
             <button 
               disabled
