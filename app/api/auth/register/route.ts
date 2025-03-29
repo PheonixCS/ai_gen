@@ -1,3 +1,4 @@
+import apiConfig from '@/config/api-config';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -6,7 +7,7 @@ export async function POST(request: Request) {
     
     // Call the external API
     const response = await fetch(
-      `http://193.188.23.43/imageni_clean/api_reg.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`,
+      `${apiConfig.domain}/api_reg.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`,
       { cache: 'no-store' }
     );
     

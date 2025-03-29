@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-
+import apiConfig from '../../../../config/api-config';
 export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
     console.log(`Proxy login request for email: ${email}`);
     
     // Call the external API
-    const apiUrl = `http://193.188.23.43/imageni_clean/api_log.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`;
+    const apiUrl = `${apiConfig.domain}/api_log.php?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`;
     console.log(`Forwarding to external API: ${apiUrl}`);
     
     const response = await fetch(apiUrl, { 

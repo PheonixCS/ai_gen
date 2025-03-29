@@ -1,9 +1,10 @@
+import apiConfig from '@/config/api-config';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    let apiUrl = `http://193.188.23.43/imageni_clean/api_reset.php?em=${encodeURIComponent(data.email)}`;
+    let apiUrl = `${apiConfig.domain}/api_reset.php?em=${encodeURIComponent(data.email)}`;
     
     // Add additional parameters based on operation type
     if (data.checkCode) {
