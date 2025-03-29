@@ -80,7 +80,7 @@ export default function GenerateImagePage() {
       //   selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
       // );
       } else {
-      
+        alert(1000);
         let param : GenerateImageParams = {
           prompt: prompt,
           style_preset: 'photographic', // Default style
