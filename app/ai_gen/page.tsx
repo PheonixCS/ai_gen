@@ -42,6 +42,7 @@ export default function GenerateImagePage() {
       //   imageUrl = image.image_url;
       // }
       // Вариант 2: API вернул массив изображений
+      console.log('Generated image data:', image);
       if (image.images && image.images.length > 0) {
         // Берем последнее изображение из списка (самое свежее)
         const lastImage = image.images[image.images.length - 1];
