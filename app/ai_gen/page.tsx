@@ -87,7 +87,7 @@ export default function GenerateImagePage() {
           throw new Error('Failed to get image URL from server');
         }
       } else {
-        alert(1000);
+        // alert(1000);
         let param : GenerateImageParams = {
           prompt: prompt,
           style_preset: 'photographic', // Default style
@@ -102,6 +102,7 @@ export default function GenerateImagePage() {
           user?.password || '', // Optional negative prompt
         );
         const proxy_result = await fetch(config.clearDomain + image.image_url) 
+        console.log('proxy_result: ', proxy_result);
         // если proxy_result объект и имеет нужные поля
         if (
           typeof proxy_result === 'object' && 
