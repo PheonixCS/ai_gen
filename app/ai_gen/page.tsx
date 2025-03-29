@@ -10,6 +10,7 @@ import { aiGenerationService, ApiImagesResponse, GenerateImageParams } from '@/s
 import AspectRatioSelector from '@/components/AspectRatioSelector';
 import config from '@/config/api-config';
 import { AuthService } from '@/services/auth.service';
+import { tree } from 'next/dist/build/templates/app-page';
 
 type Tool = 'generate' | 'enhance' | 'background';
 
@@ -68,25 +69,47 @@ export default function GenerateImagePage() {
     setIsGenerating(true);
     
     try {
+      let image: any = null;
+      let image_url: string | null = null;
+      let isProxy = true;
+      if (!isProxy) {
       // Using the legacy API method for image generation
-      // const image = await aiGenerationService.generateImageWithLegacyApi(
+      // image = await aiGenerationService.generateImageWithLegacyApi(
       //   prompt,
       //   'photographic', // Default style
       //   selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
       // );
-      let param : GenerateImageParams = {
-        prompt: prompt,
-        style_preset: 'photographic', // Default style
-        aspect_ratio: selectedAspectRatio, // Convert "1:1" format to "1x1"
-        output_format: 'png', // Optional negative prompt
-      }
-      let authService = new AuthService();
-      let user = await authService.getCurrentUser();
-      const image = await aiGenerationService.generateImage(
-        param,
-        user?.email || '', // Optional negative prompt
-        user?.password || '', // Optional negative prompt
-      );      
+      } else {
+      
+        let param : GenerateImageParams = {
+          prompt: prompt,
+          style_preset: 'photographic', // Default style
+          aspect_ratio: selectedAspectRatio, // Convert "1:1" format to "1x1"
+          output_format: 'png', // Optional negative prompt
+        }
+        let authService = new AuthService();
+        let user = await authService.getCurrentUser();
+        image = await aiGenerationService.generateImage(
+          param,
+          user?.email || '', // Optional negative prompt
+          user?.password || '', // Optional negative prompt
+        );
+        const proxy_result = await fetch(config.clearDomain + image.image_url) 
+        // если proxy_result объект и имеет нужные поля
+        if (
+          typeof proxy_result === 'object' && 
+          proxy_result !== null && 
+          'images' in proxy_result && 
+          Array.isArray(proxy_result.images) && 
+          proxy_result.images.length > 0
+        ) {
+          let last_image = proxy_result.images[proxy_result.images.length - 1];
+          image_url = config.clearDomain + "api_img.php/img=" + last_image.id + "&em=" + user?.email + "&pw=" + user?.password;
+          setGeneratedImageUrl(image_url)
+          return;
+          // Дальнейшая работа с last_image
+        }
+      }   
       console.log('Generated image data:', image);
       
       if (image.image_url) {
