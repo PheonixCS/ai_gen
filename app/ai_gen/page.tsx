@@ -161,7 +161,14 @@ export default function GenerateImagePage() {
           )}
         </div>
       </main>
-
+      {/* Aspect ratio selector - only shown when toggled */}
+      {showAspectRatioSelector && (
+        <AspectRatioSelector
+          selectedRatio={selectedAspectRatio}
+          onSelectRatio={handleAspectRatioChange}
+          className="my-2 border-t border-b border-white/5"
+        />
+      )}
       {/* Tools panel */}
       <footer className="border-t border-white/10 pb-6">
         {/* Top tools row - removed background */}
@@ -239,14 +246,7 @@ export default function GenerateImagePage() {
               </svg>
               <span className={`text-xs ${activeTool === 'generate' ? 'text-white' : 'text-white/70'}`}>Генерация<br/>фото</span>
             </button>
-            {/* Aspect ratio selector - only shown when toggled */}
-            {showAspectRatioSelector && (
-              <AspectRatioSelector
-                selectedRatio={selectedAspectRatio}
-                onSelectRatio={handleAspectRatioChange}
-                className="my-2 border-t border-b border-white/5"
-              />
-            )}
+            
             {/* Enhance Photo tool - disabled */}
             <button 
               disabled
