@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { aiGenerationService } from '@/services/ai_gen.service';
+import { aiGenerationService, ApiImagesResponse } from '@/services/ai_gen.service';
 import config from '@/config/api-config';
 
 type Tool = 'generate' | 'enhance' | 'background';
@@ -29,32 +29,36 @@ export default function GenerateImagePage() {
     setIsGenerating(true);
     
     try {
+      // Шаг 1: Генерация изображения
       const image = await aiGenerationService.generateImageForCurrentUser({
         prompt: prompt,
         style_preset: 'photographic',
         output_format: 'png'
       });
       
-      let imageUrl;
-    
-      // Вариант 1: API вернул прямую ссылку на изображение
-      // if (image.) {
-      //   imageUrl = image.image_url;
-      // }
-      // Вариант 2: API вернул массив изображений
       console.log('Generated image data:', image);
+      
+      // Шаг 2: Проверяем, есть ли прямой URL в ответе
       if (image.image_url) {
-        // Берем последнее изображение из списка (самое свежее)
-        // const lastImage = image.images[image.images.length - 1];
-        // const imageId = lastImage.id || lastImage.img_id;
-        // const format = lastImage.format || 'png';
-        // const userId = image.user_id;
+        // Если есть прямой URL, делаем запрос для получения списка изображений
+        const response = await fetch(`${config.clearDomain}${image.image_url}`);
+        const imagesData: ApiImagesResponse = await response.json();
         
-        // Формируем URL для доступа к изображению
-        imageUrl = `${config.clearDomain}${image.image_url}`;
-        setGeneratedImageUrl(imageUrl);
-      } 
-      else {
+        if (imagesData.images && imagesData.images.length > 0) {
+          // Берем последнее изображение (самое свежее)
+          const lastImage = imagesData.images[imagesData.images.length - 1];
+          const userId = imagesData.user_id;
+          const imageId = lastImage.img_id || lastImage.id;
+          const format = lastImage.format || 'png';
+          
+          // Формируем URL по шаблону: ${config.domain}/db/img/{userId}/{imageId}.{format}
+          const imageUrl = `${config.domain}/db/img/${userId}/${imageId}.${format}`;
+          console.log('Generated image URL:', imageUrl);
+          setGeneratedImageUrl(imageUrl);
+        } else {
+          throw new Error('Не удалось получить список изображений от сервера');
+        }
+      } else {
         throw new Error('Не удалось получить данные изображения от сервера');
       }
     } catch (error) {
@@ -64,7 +68,6 @@ export default function GenerateImagePage() {
       setIsGenerating(false);
     }
   };
-
   const handleToolChange = (tool: Tool) => {
     setActiveTool(tool);
   };
