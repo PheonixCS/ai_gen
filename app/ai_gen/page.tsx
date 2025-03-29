@@ -106,13 +106,13 @@ export default function GenerateImagePage() {
         console.log('proxy_result: ', data);
         // если proxy_result объект и имеет нужные поля
         if (
-          typeof proxy_result === 'object' && 
-          proxy_result !== null && 
-          'images' in proxy_result && 
-          Array.isArray(proxy_result.images) && 
-          proxy_result.images.length > 0
+          typeof data === 'object' && 
+          data !== null && 
+          'images' in data && 
+          Array.isArray(data.images) && 
+          data.images.length > 0
         ) {
-          let last_image = proxy_result.images[proxy_result.images.length - 1];
+          let last_image = data.images[data.images.length - 1];
           //db/img/
           image_url = config.clearDomain + "db/img/" + image.user_id + last_image.image_id + '.' + last_image.format;
           setGeneratedImageUrl(image_url)
