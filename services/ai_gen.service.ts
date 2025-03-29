@@ -13,17 +13,23 @@ export interface GenerateImageParams {
   prompt: string;
   style_preset?: StylePreset;
   output_format?: OutputFormat;
+  aspect_ratio?: string;
 }
 
 export interface ApiImage {
   id: number;
   img_id?: number;  // Дублирующее поле в некоторых ответах
   prompt: string;
+  text?: string;    // Дублирующее поле для промпта
   style: string;
   format: string | null;
   created: number;
+  t?: number;       // Альтернативное поле для времени создания
   size: number;
-  url?: string;    // Опционально может содержать URL
+  url?: string;     // Опционально может содержать URL
+  code?: number;    // Код результата генерации
+  msg?: string;     // Сообщение о результате
+  status?: string;  // Статус процесса генерации
 }
 
 // Интерфейс для ответа API со списком изображений
@@ -73,6 +79,30 @@ export type StylePreset =
   | 'tile-texture';
 
 export type OutputFormat = 'jpeg' | 'png' | 'webp';
+
+export interface LegacyApiParams {
+  em: string;           // User email
+  pass: string;         // User password
+  text?: string;        // Prompt for image generation
+  style?: string;       // Style preset
+  img?: number;         // Image ID (0 for new image)
+  size?: string;        // Image aspect ratio as "AxB" (e.g. "1x1", "4x3")
+  uid?: string;         // Optional user ID
+}
+
+export interface LegacyApiResponse {
+  log: string;          // 'success' or 'error'
+  msg: string;          // Status message
+  code: number;         // Status code (200 for success)
+  user_id: number;      // User ID
+  timestamp: number;    // Timestamp/subscription end time
+  email: string;        // User email
+  pass: string;         // User password
+  sub: 'y' | 'n';       // Subscription status
+  usage_7d: number;     // Usage count in last 7 days
+  images?: ApiImage[];  // Array of user images (when fetching all images)
+  answer?: any;         // Answer data when generating a new image
+}
 
 export class AIGenerationService {
   /**
@@ -227,53 +257,163 @@ export class AIGenerationService {
     }
   }
 
-  // /**
-  //  * Удаляет изображение текущего пользователя
-  //  * @param imageId ID изображения для удаления
-  //  * @returns Результат операции удаления
-  //  */
-  // async deleteCurrentUserImage(imageId: number): Promise<{ success: boolean, message: string }> {
-  //   const currentUser = authService.getCurrentUser();
-  //   const password = authService.getUserPassword();
+  /**
+   * Fetch images or generate new image using legacy API
+   * @param params Parameters for the legacy API
+   * @returns Promise with the API response
+   */
+  async fetchImagesFromLegacyApi(params: LegacyApiParams): Promise<LegacyApiResponse> {
+    try {
+      // Construct FormData for the request
+      const formData = new FormData();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+
+      // Make the API request
+      const response = await fetch('/imageni_clean/api_img.php', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Check for API errors
+      if (data.log === 'error') {
+        throw {
+          status: 'error',
+          message: data.msg || 'Unknown error',
+          code: data.code || 500
+        };
+      }
+
+      return data as LegacyApiResponse;
+    } catch (error) {
+      console.error('Error fetching from legacy API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate an image using the legacy API
+   * @param prompt Text prompt for the image
+   * @param style Optional style preset
+   * @param aspectRatio Optional aspect ratio as string (e.g. "1x1", "4x3")
+   * @returns Promise with the generated image data
+   */
+  async generateImageWithLegacyApi(
+    prompt: string,
+    style: string = 'photographic',
+    aspectRatio: string = '1x1'
+  ): Promise<GeneratedImage> {
+    const currentUser = authService.getCurrentUser();
+    const password = authService.getUserPassword();
     
-  //   if (!currentUser || !currentUser.email || !password) {
-  //     throw new Error('Пользователь не авторизован или отсутствуют учетные данные');
-  //   }
+    if (!currentUser || !currentUser.email || !password) {
+      throw new Error('User not authenticated or credentials missing');
+    }
+
+    // Map aspect ratio from new format to legacy format
+    let sizeFormat = '1x1';
+    switch (aspectRatio) {
+      case '1:1': sizeFormat = '1x1'; break;
+      case '4:5': sizeFormat = '4x5'; break;
+      case '2:3': sizeFormat = '2x3'; break;
+      case '3:2': sizeFormat = '3x2'; break;
+      case '3:4': sizeFormat = '3x4'; break;
+      case '4:3': sizeFormat = '4x3'; break;
+      case '16:9': sizeFormat = '16x9'; break;
+      case '9:16': sizeFormat = '9x16'; break;
+    }
     
-  //   return this.deleteUserImage(imageId, currentUser.email, password);
-  // }
-  
-  // /**
-  //  * Удаляет изображение пользователя
-  //  * @param imageId ID изображения для удаления
-  //  * @param email Email пользователя
-  //  * @param password Пароль пользователя
-  //  * @returns Результат операции удаления
-  //  */
-  // async deleteUserImage(imageId: number, email: string, password: string): Promise<{ success: boolean, message: string }> {
-  //   try {
-  //     const response = await apiClient.deleteImage({
-  //       image_id: imageId,
-  //       em: email,
-  //       pass: password
-  //     });
+    try {
+      // Generate a timestamp for the image ID
+      const imgId = Math.floor(Date.now() / 1000);
       
-  //     if (response.status === 'error') {
-  //       throw new Error(response.message || 'Failed to delete image');
-  //     }
+      const response = await this.fetchImagesFromLegacyApi({
+        em: currentUser.email,
+        pass: password,
+        text: prompt,
+        style: style,
+        img: imgId,
+        size: sizeFormat
+      });
+
+      if (response.answer && response.answer.url) {
+        return {
+          image_id: imgId,
+          image_url: response.answer.url,
+          prompt: prompt,
+          style: style,
+          format: 'webp', // Legacy API uses webp format
+          created: Math.floor(Date.now() / 1000),
+          is_subscribed: response.sub === 'y',
+          image_count: response.usage_7d || 0,
+          subscription_end: response.timestamp
+        };
+      } else if (response.answer && response.answer.code === -8000) {
+        // Handle usage limit error
+        throw {
+          status: 'error',
+          message: 'Usage limit reached',
+          code: 403,
+          current_count: response.usage_7d || 0,
+          limit: 20,
+          is_subscribed: response.sub === 'y'
+        };
+      } else {
+        throw new Error('Failed to generate image: ' + (response.answer?.msg || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error generating image with legacy API:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all images for the current user using the legacy API
+   * @returns Promise with array of user images
+   */
+  async getUserImagesWithLegacyApi(): Promise<GeneratedImage[]> {
+    const currentUser = authService.getCurrentUser();
+    const password = authService.getUserPassword();
+    
+    if (!currentUser || !currentUser.email || !password) {
+      throw new Error('User not authenticated or credentials missing');
+    }
+    
+    try {
+      const response = await this.fetchImagesFromLegacyApi({
+        em: currentUser.email,
+        pass: password
+      });
       
-  //     return {
-  //       success: true,
-  //       message: response.message || 'Image successfully deleted'
-  //     };
-  //   } catch (error) {
-  //     console.error('Error deleting image:', error);
-  //     return {
-  //       success: false,
-  //       message: error instanceof Error ? error.message : 'Unknown error occurred'
-  //     };
-  //   }
-  // }
+      if (response.images && Array.isArray(response.images)) {
+        return response.images.map(img => ({
+          image_id: img.img_id || img.id,
+          image_url: img.url || `https://imageni.ai/db/img/${response.user_id}/${img.img_id || img.id}.webp`,
+          prompt: img.text || img.prompt || '',
+          style: img.style || 'photographic',
+          format: img.format || 'webp',
+          created: img.t || img.created || 0,
+          is_subscribed: response.sub === 'y',
+          image_count: response.usage_7d || 0,
+          subscription_end: response.timestamp
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error getting images with legacy API:', error);
+      throw error;
+    }
+  }
 
   /**
    * Преобразует URL изображения в Data URL для отображения

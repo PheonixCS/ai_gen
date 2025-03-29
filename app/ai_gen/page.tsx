@@ -67,41 +67,19 @@ export default function GenerateImagePage() {
     setIsGenerating(true);
     
     try {
-      // Шаг 1: Генерация изображения
-      const image = await aiGenerationService.generateImageForCurrentUser({
-        prompt: prompt,
-        style_preset: 'photographic',
-        output_format: 'png'
-      });
+      // Using the legacy API method for image generation
+      const image = await aiGenerationService.generateImageWithLegacyApi(
+        prompt,
+        'photographic', // Default style
+        selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
+      );
       
       console.log('Generated image data:', image);
-      if (handleImageResponse(image)) {
-        // Это была ошибка лимита, дальнейшая обработка не нужна
-        return;
-      }
       
-      // Шаг 2: Проверяем, есть ли прямой URL в ответе
       if (image.image_url) {
-        // Если есть прямой URL, делаем запрос для получения списка изображений
-        const response = await fetch(`${config.clearDomain}${image.image_url}`);
-        const imagesData: ApiImagesResponse = await response.json();
-        
-        if (imagesData.images && imagesData.images.length > 0) {
-          // Берем последнее изображение (самое свежее)
-          const lastImage = imagesData.images[imagesData.images.length - 1];
-          const userId = imagesData.user_id;
-          const imageId = lastImage.img_id || lastImage.id;
-          const format = lastImage.format || 'png';
-          
-          // Формируем URL по шаблону: ${config.domain}/db/img/{userId}/{imageId}.{format}
-          const imageUrl = `${config.domain}/db/img/${userId}/${imageId}.${format}`;
-          console.log('Generated image URL:', imageUrl);
-          setGeneratedImageUrl(imageUrl);
-        } else {
-          throw new Error('Не удалось получить список изображений от сервера');
-        }
+        setGeneratedImageUrl(image.image_url);
       } else {
-        throw new Error('Не удалось получить данные изображения от сервера');
+        throw new Error('Failed to get image URL from server');
       }
     } catch (error) {
       console.error('Error generating image:', error);
