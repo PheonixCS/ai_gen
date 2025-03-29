@@ -195,18 +195,26 @@ export default function GenerateImagePage() {
               onClick={() => handleToolChange('generate')} 
               className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
             >
-              <div className="relative mb-1">
-                <Image 
-                  src="/img_gen.png" 
-                  width={24} 
-                  height={24} 
-                  alt="Генерация фото"
-                  className={`${activeTool !== 'generate' ? 'grayscale brightness-[1.7]' : ''}`}
-                />
-                {activeTool === 'generate' && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] mix-blend-overlay rounded-sm"></div>
-                )}
-              </div>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+                {/* Большая центральная звезда */}
+                <path d="M12 4C13.2 4 13.8 5.6 14.4 7.2C14.8 8.2 15.8 8.8 16.8 8.4C18.4 7.8 20 7.2 20 8.4C20 9.6 18.4 10.2 16.8 10.8C15.8 11.2 15.2 12.2 15.6 13.2C16.2 14.8 16.8 16.4 15.6 16.4C14.4 16.4 13.8 14.8 13.2 13.2C12.8 12.2 11.8 11.6 10.8 12C9.2 12.6 7.6 13.2 7.6 12C7.6 10.8 9.2 10.2 10.8 9.6C11.8 9.2 12.4 8.2 12 7.2C11.4 5.6 10.8 4 12 4Z" 
+                  fill={activeTool === 'generate' ? 'url(#gradient-star)' : '#F0F6F3'}/>
+                
+                {/* Маленькая звезда (верхний правый угол) */}
+                <path d="M18 3C18.4 3 18.6 3.6 18.8 4.2C18.9 4.5 19.2 4.7 19.5 4.6C20.1 4.4 20.7 4.2 20.7 4.6C20.7 5 20.1 5.2 19.5 5.4C19.2 5.5 19 5.8 19.1 6.1C19.3 6.7 19.5 7.3 19.1 7.3C18.7 7.3 18.5 6.7 18.3 6.1C18.2 5.8 17.9 5.6 17.6 5.7C17 5.9 16.4 6.1 16.4 5.7C16.4 5.3 17 5.1 17.6 4.9C17.9 4.8 18.1 4.5 18 4.2C17.8 3.6 17.6 3 18 3Z" 
+                  fill={activeTool === 'generate' ? 'url(#gradient-star)' : '#F0F6F3'}/>
+                
+                {/* Маленькая звезда (нижний левый угол) */}
+                <path d="M6 17C6.4 17 6.6 17.6 6.8 18.2C6.9 18.5 7.2 18.7 7.5 18.6C8.1 18.4 8.7 18.2 8.7 18.6C8.7 19 8.1 19.2 7.5 19.4C7.2 19.5 7 19.8 7.1 20.1C7.3 20.7 7.5 21.3 7.1 21.3C6.7 21.3 6.5 20.7 6.3 20.1C6.2 19.8 5.9 19.6 5.6 19.7C5 19.9 4.4 20.1 4.4 19.7C4.4 19.3 5 19.1 5.6 18.9C5.9 18.8 6.1 18.5 6 18.2C5.8 17.6 5.6 17 6 17Z" 
+                  fill={activeTool === 'generate' ? 'url(#gradient-star)' : '#F0F6F3'}/>
+                
+                <defs>
+                  <linearGradient id="gradient-star" x1="3" y1="12" x2="21" y2="12" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#58E877"/>
+                    <stop offset="1" stopColor="#FFFBA1"/>
+                  </linearGradient>
+                </defs>
+              </svg>
               <span className={`text-xs ${activeTool === 'generate' ? 'text-white' : 'text-white/70'}`}>Генерация<br/>фото</span>
             </button>
             
