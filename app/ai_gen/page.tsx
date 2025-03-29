@@ -167,7 +167,7 @@ export default function GenerateImagePage() {
                   className="group bg-black/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:bg-black/50 hover:shadow-lg hover:scale-105"
                 >
                   <CloudDownloadIcon 
-                    className="w-6 h-6 text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r from-[#58E877] to-[#FFFBA1]"
+                    className="w-6 h-6 text-white"
                     sx={{ fontSize: 24 }}
                   />
                 </button>
@@ -184,7 +184,7 @@ export default function GenerateImagePage() {
                   className="group bg-black/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:bg-black/50 hover:shadow-lg hover:scale-105"
                 >
                   <ShareIcon 
-                    className="w-6 h-6 text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r from-[#58E877] to-[#FFFBA1]"
+                    className="w-6 h-6 text-white"
                     sx={{ fontSize: 24 }}
                   />
                 </button>
