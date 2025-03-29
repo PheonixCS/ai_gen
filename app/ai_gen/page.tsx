@@ -13,7 +13,14 @@ import config from '@/config/api-config';
 type Tool = 'generate' | 'enhance' | 'background';
 
 export default function GenerateImagePage() {
-  
+  type ApiError = {
+    status: string;
+    message: string;
+    code: number;
+    current_count?: number;
+    limit?: number;
+    is_subscribed?: boolean;
+  };
   // Inside your component, add these state variables
   const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3'>('1:1');
@@ -29,7 +36,7 @@ export default function GenerateImagePage() {
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>('generate');
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const [error, setError] = useState<ApiError | null>(null);
   // Auto resize textarea based on content
   useEffect(() => {
     if (promptTextareaRef.current) {
@@ -78,7 +85,24 @@ export default function GenerateImagePage() {
       }
     } catch (error) {
       console.error('Error generating image:', error);
-      alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+      
+      // Проверяем, соответствует ли ошибка нашему типу
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const api_error = error as ApiError;
+        setError(api_error);
+        
+        if (api_error.code !== 403) {
+          alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+        }
+      } else {
+        // Для других ошибок
+        setError({
+          status: 'error',
+          message: 'Неизвестная ошибка',
+          code: 500
+        });
+        alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -145,6 +169,21 @@ export default function GenerateImagePage() {
             <div className="flex flex-col items-center justify-center p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#58E877] mb-4"></div>
               <p className="text-white/70">Генерация изображения...</p>
+            </div>
+          ) : error?.code === 403 ? (  
+            <div className="flex flex-col items-center justify-center p-6 bg-white/5 rounded-xl max-w-md mx-auto">
+              <div className="text-red-400 font-medium mb-3 text-center">
+                Вы израсходовали лимит бесплатных генераций ({error.current_count}/{error.limit})
+              </div>
+              <p className="text-white/70 text-sm mb-4 text-center">
+                Для неограниченного доступа оформите PRO подписку
+              </p>
+              <button 
+                onClick={() => window.location.href = '/subscribe'} // Замените на ваш путь
+                className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Активировать PRO доступ
+              </button>
             </div>
           ) : generatedImageUrl ? (
             <div className="w-full h-full relative">
