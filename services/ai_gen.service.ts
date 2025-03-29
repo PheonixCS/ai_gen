@@ -8,7 +8,7 @@ import {
 
 import apiClient from './api-client';
 import authService from './auth.service';
-
+import config  from '../config/api-config';
 export interface GenerateImageParams {
   prompt: string;
   style_preset?: StylePreset;
@@ -367,7 +367,8 @@ export class AIGenerationService {
           const latestImage = response.images[response.images.length - 1];
           
           // Construct the URL based on the image ID and user ID
-          const imageUrl = `https://imageni.ai/db/img/${response.user_id}/${latestImage.img_id || latestImage.id}.${latestImage.format || 'webp'}`;
+          // const imageUrl = `https://imageni.ai/db/img/${response.user_id}/${latestImage.img_id || latestImage.id}.${latestImage.format || 'webp'}`;
+          const imageUrl = config.domain + '/db/img/' + response.user_id + '/' + latestImage.img_id || latestImage.id + '.' + (latestImage.format || 'webp');
           
           return {
             image_id: latestImage.img_id || latestImage.id,
