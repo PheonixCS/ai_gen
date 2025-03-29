@@ -3,11 +3,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { aiGenerationService, ApiImagesResponse } from '@/services/ai_gen.service';
+import AspectRatioSelector from '@/components/AspectRatioSelector';
 import config from '@/config/api-config';
 
 type Tool = 'generate' | 'enhance' | 'background';
 
 export default function GenerateImagePage() {
+  
+  // Inside your component, add these state variables
+  const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3'>('1:1');
+
+  // Add this handler function
+  const handleAspectRatioChange = (ratio: '1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3') => {
+    setSelectedAspectRatio(ratio);
+    // Here you would apply the aspect ratio to your image generation parameters
+  };
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -186,6 +197,14 @@ export default function GenerateImagePage() {
             </button>
           )}
         </div>
+        {/* Aspect ratio selector - only shown when toggled */}
+        {showAspectRatioSelector && (
+          <AspectRatioSelector
+            selectedRatio={selectedAspectRatio}
+            onSelectRatio={handleAspectRatioChange}
+            className="my-2 border-t border-b border-white/5"
+          />
+        )}
         
         {/* Bottom tools row with text */}
         <div className="max-w-3xl mx-auto px-4 pt-2 border-t border-white/10">
@@ -193,7 +212,7 @@ export default function GenerateImagePage() {
             {/* Generate Photo tool - removed border for selected tool */}
             <button 
               onClick={() => handleToolChange('generate')} 
-              className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
+              className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'} focus:outline-none`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
                 {/* Большая центральная звезда */}
