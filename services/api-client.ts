@@ -236,7 +236,7 @@ export class ApiClient {
       if (this.proxyEnabled) {
         // Используем Next.js API route для обхода CORS
         console.log('Using proxy API route for image generation');
-        response = await fetch('/api/generate', {
+        response = await fetch('/api_generate.php', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
