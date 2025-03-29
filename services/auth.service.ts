@@ -12,6 +12,8 @@ export interface User {
   email: string;
   userId?: number;
   token?: string;
+  // Добавляем поле для хранения пароля в открытом виде
+  password?: string;
 }
 
 export class AuthService {
@@ -65,6 +67,14 @@ export class AuthService {
         console.error('Error saving user to localStorage:', error);
       }
     }
+  }
+
+  /**
+   * Получает пароль текущего пользователя
+   * @returns Пароль пользователя в открытом виде или null, если пользователь не авторизован
+   */
+  public getUserPassword(): string | null {
+    return this.user?.password || null;
   }
 
   public isAuthenticated(): boolean {
@@ -158,11 +168,16 @@ export class AuthService {
   // Reset the password with new password
   async resetPassword(email: string, code: string, newPassword: string): Promise<AuthResponse> {
     try {
-      // Make sure all parameters are passed to the API client changePassword method
       const response = await apiClient.changePassword(email, code, newPassword);
       
       // Check if the response is successful
       if (response.code === 150 || response.code === 200 || response.reset_check === "success") {
+        // Если пользователь был залогинен с этим email, обновляем сохраненный пароль
+        if (this.user && this.user.email === email) {
+          this.user.password = newPassword;
+          this.saveUserToStorage(this.user);
+        }
+        
         return {
           success: true,
           message: "Пароль успешно изменен"
@@ -262,7 +277,12 @@ export class AuthService {
           // Clean up
           delete this.verificationCodes[email];
           delete this.pendingRegistrations[email];
-          this.user = { email };
+          
+          // Сохраняем пользователя вместе с паролем в открытом виде
+          this.user = { 
+            email,
+            password: pendingRegistration.password 
+          };
           this.saveUserToStorage(this.user);
           
           return { 
@@ -313,11 +333,12 @@ export class AuthService {
           sub
         });
         
-        // Store user info with token
+        // Store user info with token and password in plaintext
         this.user = { 
           email, 
           userId, 
-          token 
+          token,
+          password // Сохраняем пароль в открытом виде
         };
         
         // Явно сохраняем пользователя в localStorage
@@ -325,7 +346,7 @@ export class AuthService {
         
         // Проверим, что данные действительно сохранились
         console.log('User saved to storage, current localStorage:', 
-          typeof window !== 'undefined' ? localStorage.getItem('user') : 'Not available');
+          typeof window !== 'undefined' ? 'Data saved' : 'Not available');
         
         return { 
           success: true, 

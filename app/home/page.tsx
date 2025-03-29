@@ -141,7 +141,7 @@ export default function HomePage() {
       <main className="max-w-6xl mx-auto p-4 md:p-6">
         {/* Create button */}
         <div className="mb-8 flex justify-center">
-          <button className="create-button">
+          <button className="create-button" onClick={() => router.push('/ai_gen')}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M10 4V16" stroke="url(#plusGradient)" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M4 10H16" stroke="url(#plusGradient)" strokeWidth="1.5" strokeLinecap="round"/>
