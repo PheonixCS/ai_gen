@@ -345,18 +345,45 @@ export class AIGenerationService {
         size: sizeFormat
       });
 
-      if (response.answer && response.answer.url) {
-        return {
-          image_id: imgId,
-          image_url: response.answer.url,
-          prompt: prompt,
-          style: style,
-          format: 'webp', // Legacy API uses webp format
-          created: Math.floor(Date.now() / 1000),
-          is_subscribed: response.sub === 'y',
-          image_count: response.usage_7d || 0,
-          subscription_end: response.timestamp
-        };
+      // Check if response is successful
+      if (response.log === 'success' && response.code === 200) {
+        // Check if we have an answer object with URL
+        if (response.answer && response.answer.url) {
+          return {
+            image_id: imgId,
+            image_url: response.answer.url,
+            prompt: prompt,
+            style: style,
+            format: 'webp', // Legacy API uses webp format
+            created: Math.floor(Date.now() / 1000),
+            is_subscribed: response.sub === 'y',
+            image_count: response.usage_7d || 0,
+            subscription_end: response.timestamp
+          };
+        } 
+        // Check if we have images array with the latest image
+        else if (response.images && response.images.length > 0) {
+          // Get the most recent image from the array (last one)
+          const latestImage = response.images[response.images.length - 1];
+          
+          // Construct the URL based on the image ID and user ID
+          const imageUrl = `https://imageni.ai/db/img/${response.user_id}/${latestImage.img_id || latestImage.id}.${latestImage.format || 'webp'}`;
+          
+          return {
+            image_id: latestImage.img_id || latestImage.id,
+            image_url: imageUrl,
+            prompt: latestImage.prompt || prompt,
+            style: latestImage.style || style,
+            format: latestImage.format || 'webp',
+            created: latestImage.created || Math.floor(Date.now() / 1000),
+            is_subscribed: response.sub === 'y',
+            image_count: response.usage_7d || 0,
+            subscription_end: response.timestamp
+          };
+        }
+        else {
+          throw new Error('No image data in the API response');
+        }
       } else if (response.answer && response.answer.code === -8000) {
         // Handle usage limit error
         throw {
@@ -368,7 +395,7 @@ export class AIGenerationService {
           is_subscribed: response.sub === 'y'
         };
       } else {
-        throw new Error('Failed to generate image: ' + (response.answer?.msg || 'Unknown error'));
+        throw new Error('Failed to generate image: ' + (response.msg || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error generating image with legacy API:', error);
