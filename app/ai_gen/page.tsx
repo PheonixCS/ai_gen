@@ -102,7 +102,8 @@ export default function GenerateImagePage() {
           user?.password || '', // Optional negative prompt
         );
         const proxy_result = await fetch(config.clearDomain + image.image_url) 
-        console.log('proxy_result: ', proxy_result);
+        const data = await proxy_result.json();
+        console.log('proxy_result: ', data);
         // если proxy_result объект и имеет нужные поля
         if (
           typeof proxy_result === 'object' && 
