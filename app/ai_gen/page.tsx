@@ -6,9 +6,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import Image from 'next/image';
-import { aiGenerationService, ApiImagesResponse } from '@/services/ai_gen.service';
+import { aiGenerationService, ApiImagesResponse, GenerateImageParams } from '@/services/ai_gen.service';
 import AspectRatioSelector from '@/components/AspectRatioSelector';
 import config from '@/config/api-config';
+import { AuthService } from '@/services/auth.service';
 
 type Tool = 'generate' | 'enhance' | 'background';
 
@@ -68,12 +69,24 @@ export default function GenerateImagePage() {
     
     try {
       // Using the legacy API method for image generation
-      const image = await aiGenerationService.generateImageWithLegacyApi(
-        prompt,
-        'photographic', // Default style
-        selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
-      );
-      
+      // const image = await aiGenerationService.generateImageWithLegacyApi(
+      //   prompt,
+      //   'photographic', // Default style
+      //   selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
+      // );
+      let param : GenerateImageParams = {
+        prompt: prompt,
+        style_preset: 'photographic', // Default style
+        aspect_ratio: selectedAspectRatio, // Convert "1:1" format to "1x1"
+        output_format: 'png', // Optional negative prompt
+      }
+      let authService = new AuthService();
+      let user = await authService.getCurrentUser();
+      const image = await aiGenerationService.generateImage(
+        param,
+        user?.email || '', // Optional negative prompt
+        user?.password || '', // Optional negative prompt
+      );      
       console.log('Generated image data:', image);
       
       if (image.image_url) {
