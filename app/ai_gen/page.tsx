@@ -77,7 +77,7 @@ export default function GenerateImagePage() {
       console.log('Generated image data:', image);
       
       if (image.image_url) {
-        setGeneratedImageUrl(image.image_url);
+        setGeneratedImageUrl(image.image_url + '.' + image.format);
       } else {
         throw new Error('Failed to get image URL from server');
       }
