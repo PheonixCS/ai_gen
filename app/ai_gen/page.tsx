@@ -161,14 +161,7 @@ export default function GenerateImagePage() {
           )}
         </div>
       </main>
-      {/* Aspect ratio selector - only shown when toggled */}
-      {showAspectRatioSelector && (
-        <AspectRatioSelector
-          selectedRatio={selectedAspectRatio}
-          onSelectRatio={handleAspectRatioChange}
-          className="my-2 border-t border-b border-white/5"
-        />
-      )}
+      
       {/* Tools panel */}
       <footer className="border-t border-white/10 pb-6">
         {/* Top tools row - removed background */}
@@ -176,6 +169,7 @@ export default function GenerateImagePage() {
           <div className="flex items-center space-x-4">
             <button 
               disabled={isGenerating}
+              onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
               className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -205,14 +199,21 @@ export default function GenerateImagePage() {
           )}
         </div>
         
-        
+        {/* Aspect ratio selector - only shown when toggled */}
+        {showAspectRatioSelector && (
+          <AspectRatioSelector
+            selectedRatio={selectedAspectRatio}
+            onSelectRatio={handleAspectRatioChange}
+            className="my-2 border-t border-b border-white/5"
+          />
+        )}
         {/* Bottom tools row with text */}
         <div className="max-w-3xl mx-auto px-4 pt-2 border-t border-white/10">
           <div className="flex items-start overflow-x-auto space-x-6 py-2 no-scrollbar">
             {/* Generate Photo tool - removed border for selected tool */}
             <button 
-              // onClick={() => handleToolChange('generate')} 
-              onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
+              onClick={() => handleToolChange('generate')} 
+              // onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
               className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'} focus:outline-none`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
