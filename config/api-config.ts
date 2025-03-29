@@ -9,12 +9,13 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 // Default API domains
 const PRODUCTION_API_DOMAIN = process.env.NEXT_PUBLIC_API_DOMAIN || 'https://imageni.org';
 const DEVELOPMENT_API_DOMAIN = process.env.NEXT_PUBLIC_DEV_API_DOMAIN || 'https://krazu-group.tech/imageni_clean';
-
+const DEVELOPMENT_API_DOMAIN_ClEAR = process.env.NEXT_PUBLIC_DEV_API_DOMAIN_CLEAR || 'https://krazu-group.tech';
 // Select the appropriate domain based on environment
 const API_DOMAIN = isDevelopment ? DEVELOPMENT_API_DOMAIN : PRODUCTION_API_DOMAIN;
 
 const config = {
   domain: API_DOMAIN,
+  clearDomain: isDevelopment ? DEVELOPMENT_API_DOMAIN_ClEAR : PRODUCTION_API_DOMAIN,
   isDevelopment,
   proxyEnabled: isDevelopment ? true : process.env.NEXT_PUBLIC_USE_PROXY === 'true',
   endpoints: {

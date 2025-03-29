@@ -51,7 +51,7 @@ export default function GenerateImagePage() {
         // const userId = image.user_id;
         
         // Формируем URL для доступа к изображению
-        imageUrl = `${config.domain}${image.image_url}`;
+        imageUrl = `${config.clearDomain}${image.image_url}`;
         setGeneratedImageUrl(imageUrl);
       } 
       else {
