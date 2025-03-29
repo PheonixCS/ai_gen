@@ -149,6 +149,28 @@ export default function GenerateImagePage() {
                 alt="Generated image"
                 className="w-full h-auto object-contain"
               />
+              {/* Нужно на изображение наложить две кнопки, скачать и поделится */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+                <button 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = generatedImageUrl || '';
+                    link.download = 'generated_image.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="bg-[#58E877] text-white px-4 py-2 rounded-lg hover:bg-[#46D76B] transition-colors"
+                >
+                  Скачать
+                </button>
+                <button 
+                  onClick={() => alert('Поделиться функцией пока нет')}
+                  className="bg-[#58E877] text-white px-4 py-2 rounded-lg hover:bg-[#46D76B] transition-colors"
+                >
+                  Поделиться
+                </button>
+             </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-8">
@@ -178,6 +200,28 @@ export default function GenerateImagePage() {
               </svg>
             </button>
             
+            {/* Удаление изображения  */}
+            <button 
+              disabled={!generatedImageUrl || isGenerating}
+              // isvisible={!!generatedImageUrl}
+              onClick={() => setGeneratedImageUrl(null)}
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${!generatedImageUrl || isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}`}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.1252 20.9999C15.9332 20.9999 15.7412 20.9264 15.5949 20.7802L7.34494 12.5302C7.05169 12.2369 7.05169 11.7629 7.34494 11.4697L15.5949 3.21969C15.8882 2.92644 16.3622 2.92644 16.6554 3.21969C16.9487 3.51294 16.9487 3.98694 16.6554 4.28019L8.93569 11.9999L16.6554 19.7197C16.9487 20.0129 16.9487 20.4869 16.6554 20.7802C16.5092 20.9264 16.3172 20.9999 16.1252 20.9999Z" fill="#F0F6F3"/>
+              </svg>
+            </button>
+            {/* Перегенерировать */}
+            <button 
+              disabled={!generatedImageUrl || isGenerating}
+              onClick={handleGenerateImage}
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${!generatedImageUrl || isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}`}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12.4411 4.64344C12.1782 4.45219 11.8219 4.45219 11.5589 4.64344L3.30892 10.6435C3.0462 10.8345 2.93635 11.173 3.03681 11.4819C3.13727 11.7909 3.4252 12 3.75005 12H5.25005V18.75C5.25005 19.1642 5.58583 19.5 6.00005 19.5H18.0001C18.4143 19.5 18.7501 19.1642 18.7501 18.75V12H20.2501C20.5749 12 20.8628 11.7909 20.9633 11.4819C21.0637 11.173 20.9539 10.8345 20.6912 10.6435L12.4411 4.64344Z" fill="#F0F6F3"/>
+              </svg>
+            </button>
+
             {/* <button 
               className="w-12 h-12 rounded-lg flex items-center justify-center hover:bg-white/10 transition-all"
             >
