@@ -104,7 +104,8 @@ export default function GenerateImagePage() {
           proxy_result.images.length > 0
         ) {
           let last_image = proxy_result.images[proxy_result.images.length - 1];
-          image_url = config.clearDomain + "api_img.php/img=" + last_image.id + "&em=" + user?.email + "&pw=" + user?.password;
+          //db/img/
+          image_url = config.clearDomain + "db/img/" + image.user_id + last_image.image_id + '.' + last_image.format;
           setGeneratedImageUrl(image_url)
           return;
           // Дальнейшая работа с last_image
