@@ -79,6 +79,13 @@ export default function GenerateImagePage() {
       //   'photographic', // Default style
       //   selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
       // );
+        console.log('Generated image data:', image);
+        
+        if (image.image_url) {
+          setGeneratedImageUrl(image.image_url + '.' + image.format);
+        } else {
+          throw new Error('Failed to get image URL from server');
+        }
       } else {
         alert(1000);
         let param : GenerateImageParams = {
@@ -111,13 +118,7 @@ export default function GenerateImagePage() {
           // Дальнейшая работа с last_image
         }
       }   
-      console.log('Generated image data:', image);
       
-      if (image.image_url) {
-        setGeneratedImageUrl(image.image_url + '.' + image.format);
-      } else {
-        throw new Error('Failed to get image URL from server');
-      }
     } catch (error) {
       console.error('Error generating image:', error);
       
