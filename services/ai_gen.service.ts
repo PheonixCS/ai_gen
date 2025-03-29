@@ -15,6 +15,32 @@ export interface GenerateImageParams {
   output_format?: OutputFormat;
 }
 
+export interface ApiImage {
+  id: number;
+  img_id?: number;  // Дублирующее поле в некоторых ответах
+  prompt: string;
+  style: string;
+  format: string | null;
+  created: number;
+  size: number;
+  url?: string;    // Опционально может содержать URL
+}
+
+// Интерфейс для ответа API со списком изображений
+export interface ApiImagesResponse {
+  log: string;
+  msg: string;
+  code: number;
+  user_id: number;
+  timestamp: number;
+  email: string;
+  pass: string;
+  sub: 'y' | 'n';  // Строковый индикатор подписки ('y'/'n')
+  usage_7d: number;
+  images: ApiImage[];
+}
+
+// Интерфейс для использования внутри приложения (без изменения)
 export interface GeneratedImage {
   image_id: number;
   image_url: string;
@@ -54,7 +80,7 @@ export class AIGenerationService {
    * @param params Параметры генерации изображения
    * @returns Информация о сгенерированном изображении
    */
-  async generateImageForCurrentUser(params: GenerateImageParams): Promise<GeneratedImage> {
+  async generateImageForCurrentUser(params: GenerateImageParams): Promise<ApiImagesResponse> {
     const currentUser = authService.getCurrentUser();
     const password = authService.getUserPassword();
     
@@ -76,7 +102,7 @@ export class AIGenerationService {
     params: GenerateImageParams,
     email: string, 
     password: string
-  ): Promise<GeneratedImage> {
+  ): Promise<ApiImagesResponse> {
     try {
       // Используем ApiClient для взаимодействия с прокси-сервером
       const response = await apiClient.generateImage({
@@ -85,21 +111,11 @@ export class AIGenerationService {
         pass: password
       });
       
-      if (response.status === 'error') {
-        throw new Error(response.message || 'Failed to generate image');
+      if (!response) {
+        throw new Error('No response from API');
       }
       
-      return {
-        image_id: response.image_id!,
-        image_url: response.image_url!,
-        prompt: response.prompt!,
-        style: response.style!,
-        format: response.format!,
-        created: response.created || Date.now(),
-        is_subscribed: response.is_subscribed || false,
-        image_count: response.image_count || 0,
-        subscription_end: response.subscription_end
-      };
+      return response as ApiImagesResponse;
     } catch (error) {
       console.error('Error generating image:', error);
       throw error;

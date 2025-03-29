@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { aiGenerationService } from '@/services/ai_gen.service';
+import config from '@/config/api-config';
 
 type Tool = 'generate' | 'enhance' | 'background';
 
@@ -34,8 +35,27 @@ export default function GenerateImagePage() {
         output_format: 'png'
       });
       
-      const imageUrl = image.image_url;
-      setGeneratedImageUrl(imageUrl);
+      let imageUrl;
+    
+      // Вариант 1: API вернул прямую ссылку на изображение
+      // if (image.) {
+      //   imageUrl = image.image_url;
+      // }
+      // Вариант 2: API вернул массив изображений
+      if (image.images && image.images.length > 0) {
+        // Берем последнее изображение из списка (самое свежее)
+        const lastImage = image.images[image.images.length - 1];
+        const imageId = lastImage.id || lastImage.img_id;
+        const format = lastImage.format || 'png';
+        const userId = image.user_id;
+        
+        // Формируем URL для доступа к изображению
+        imageUrl = `${config.domain}/db/img/${userId}/${imageId}.${format}`;
+        setGeneratedImageUrl(imageUrl);
+      } 
+      else {
+        throw new Error('Не удалось получить данные изображения от сервера');
+      }
     } catch (error) {
       console.error('Error generating image:', error);
       alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');

@@ -1,4 +1,5 @@
 import apiConfig from '../config/api-config';
+import { ApiImagesResponse } from './ai_gen.service';
 import {
   BaseResponse,
   GenerateImageResponse,
@@ -229,7 +230,7 @@ export class ApiClient {
     em: string;
     pass: string;
     uid?: string;
-  }): Promise<GenerateImageResponse> {
+  }): Promise<ApiImagesResponse> {
     try {
       let response;
       
@@ -267,11 +268,7 @@ export class ApiClient {
       return data;
     } catch (error) {
       console.error('Generate image API error:', error);
-      return { 
-        status: 'error', 
-        message: 'Service error occurred',
-        code: 500
-      };
+      throw new Error('Service error occurred');
     }
   }
 
