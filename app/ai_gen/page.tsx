@@ -45,6 +45,22 @@ export default function GenerateImagePage() {
     }
   }, [prompt]);
 
+  const handleImageResponse = (image: unknown) => {
+    console.log('Generated image data:', image);
+    
+    // Проверяем, что ответ является объектом и содержит поле 'code'
+    if (typeof image === 'object' && image !== null && 'code' in image) {
+      const apiResponse = image as ApiError;
+      
+      // Обрабатываем случай, когда это ошибка 403
+      if (apiResponse.code === 403) {
+        setError(apiResponse);
+        return true; // Возвращаем true, если это ошибка лимита
+      }
+    }
+    
+    return false; // Это не ошибка лимита
+  };
   const handleGenerateImage = async () => {
     if (!prompt.trim() || isGenerating) return;
     
@@ -59,6 +75,10 @@ export default function GenerateImagePage() {
       });
       
       console.log('Generated image data:', image);
+      if (handleImageResponse(image)) {
+        // Это была ошибка лимита, дальнейшая обработка не нужна
+        return;
+      }
       
       // Шаг 2: Проверяем, есть ли прямой URL в ответе
       if (image.image_url) {
