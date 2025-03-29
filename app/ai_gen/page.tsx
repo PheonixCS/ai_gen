@@ -113,6 +113,7 @@ export default function GenerateImagePage() {
           data.images.length > 0
         ) {
           let last_image = data.images[data.images.length - 1];
+          console.log('last_image: ', last_image);
           //db/img/
           image_url = config.clearDomain + "db/img/" + image.user_id + last_image.image_id + '.' + last_image.format;
           setGeneratedImageUrl(image_url)
