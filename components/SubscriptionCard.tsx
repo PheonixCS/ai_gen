@@ -97,19 +97,18 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
   // Create duplicate cards for seamless infinite scrolling
   const displayCards = [...featureCards, ...featureCards, ...featureCards];
   
-  // Set up continuous carousel movement effect
+  // Set up continuous carousel movement effect that never stops
   useEffect(() => {
     const carousel = carouselRef.current;
     if (!carousel) return;
     
-    let animationActive = true;
     let scrollPosition = 0;
     const cardWidth = 276; // card width (260px) + gap (16px)
     const totalWidth = cardWidth * featureCards.length;
     const scrollSpeed = 0.5; // pixels per frame - lower for slower movement
     
     const animate = () => {
-      if (!carousel || !animationActive) return;
+      if (!carousel) return;
       
       scrollPosition += scrollSpeed;
       
@@ -125,33 +124,12 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
     
     animationRef.current = requestAnimationFrame(animate);
     
-    // Pause animation when hovering over the carousel
-    const pauseAnimation = () => {
-      animationActive = false;
-    };
-    
-    // Resume animation when mouse leaves
-    const resumeAnimation = () => {
-      animationActive = true;
-      if (animationRef.current === null) {
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    };
-    
-    carousel.addEventListener('mouseenter', pauseAnimation);
-    carousel.addEventListener('mouseleave', resumeAnimation);
-    carousel.addEventListener('touchstart', pauseAnimation);
-    carousel.addEventListener('touchend', resumeAnimation);
-    
+    // Cleanup function
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
       }
-      carousel.removeEventListener('mouseenter', pauseAnimation);
-      carousel.removeEventListener('mouseleave', resumeAnimation);
-      carousel.removeEventListener('touchstart', pauseAnimation);
-      carousel.removeEventListener('touchend', resumeAnimation);
     };
   }, [featureCards.length]);
 
@@ -178,14 +156,16 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
         {/* Right fade overlay */}
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#121212] to-transparent z-10"></div>
         
-        {/* Scrollable carousel */}
+        {/* Scrollable carousel - with pointer-events-none to prevent hover interactions */}
         <div 
           ref={carouselRef}
           className="flex gap-4 overflow-x-hidden py-2 px-2"
           style={{ 
             scrollbarWidth: 'none', 
             msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            // Disable user interaction with carousel
+            pointerEvents: 'none'
           }}
         >
           {/* Feature Cards - Duplicated for infinite scroll effect */}
