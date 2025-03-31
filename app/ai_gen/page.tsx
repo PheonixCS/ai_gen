@@ -76,15 +76,15 @@ export default function GenerateImagePage() {
       let user = await authService.getCurrentUser();
       
       // Check if user has a subscription
-      if (user && user.sub === 'n') {
-        console.log('User is not subscribed, showing subscription card');
-        // Simulate generation for a moment
-        setTimeout(() => {
-          setIsGenerating(false);
-          setShowSubscriptionCard(true);
-        }, 1500);
-        return;
-      }
+      // if (user && user.sub === 'n') {
+      //   console.log('User is not subscribed, showing subscription card');
+      //   // Simulate generation for a moment
+      //   setTimeout(() => {
+      //     setIsGenerating(false);
+      //     setShowSubscriptionCard(true);
+      //   }, 1500);
+      //   return;
+      // }
       
       let image: any = null;
       let image_url: string | null = null;
