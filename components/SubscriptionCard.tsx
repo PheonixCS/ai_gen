@@ -24,42 +24,12 @@ interface SubscriptionCardProps {
   onClose: () => void;
 }
 
-export default function SubscriptionCard({ onClose }: SubscriptionCardProps): React.ReactElement{
+export default function SubscriptionCard({ onClose }: SubscriptionCardProps): React.ReactElement {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptSubscription, setAcceptSubscription] = useState(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
   
-  // Auto-scroll the carousel
-  useEffect(() => {
-    const carousel = carouselRef.current;
-    if (!carousel) return;
-    
-    let scrollPosition = 0;
-    const cardWidth = 280; // card width + gap
-    const scrollSpeed = 1;
-    
-    const scroll = () => {
-      scrollPosition += scrollSpeed;
-      
-      if (scrollPosition >= cardWidth && carousel.children.length > 0) {
-        // Move first card to the end for infinite scroll
-        const firstCard = carousel.children[0];
-        carousel.appendChild(firstCard.cloneNode(true));
-        carousel.removeChild(firstCard);
-        scrollPosition = 0;
-      }
-      
-      carousel.scrollLeft = scrollPosition;
-      animationRef.current = requestAnimationFrame(scroll);
-    };
-    
-    const animationRef = { current: requestAnimationFrame(scroll) };
-    
-    return () => {
-      cancelAnimationFrame(animationRef.current);
-    };
-  }, []);
-
   // Feature cards data
   const featureCards = [
     {
@@ -123,6 +93,31 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
       subtitle: "Получайте лучшее качество"
     }
   ];
+  
+  // Create duplicate cards for seamless infinite scrolling
+  const displayCards = [...featureCards, ...featureCards, ...featureCards];
+  
+  // Set up infinite carousel effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentCardIndex((prevIndex) => (prevIndex + 1) % featureCards.length);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [featureCards.length]);
+  
+  // When current index changes, scroll to the appropriate card
+  useEffect(() => {
+    if (carouselRef.current) {
+      // Calculate scroll position - each card is 260px wide with 16px gap (total 276px)
+      const scrollPosition = (currentCardIndex % featureCards.length) * 276;
+      
+      carouselRef.current.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
+    }
+  }, [currentCardIndex, featureCards.length]);
 
   return (
     <div className="bg-[#121212] rounded-xl p-5 max-w-md w-full mx-auto">
@@ -151,14 +146,31 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
         <div 
           ref={carouselRef}
           className="flex gap-4 overflow-x-hidden py-2 px-2 scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* Feature Cards */}
-          {featureCards.map((card, index) => (
+          {/* Feature Cards - Duplicated three times for infinite scroll effect */}
+          {displayCards.map((card, index) => (
             <FeatureCard
-              key={index}
+              key={`card-${index}`}
               icon={card.icon}
               title={card.title}
               subtitle={card.subtitle}
+            />
+          ))}
+        </div>
+        
+        {/* Carousel indicator dots */}
+        <div className="flex justify-center mt-4 gap-1.5">
+          {featureCards.map((_, index) => (
+            <button
+              key={`dot-${index}`}
+              className={`w-1.5 h-1.5 rounded-full transition-all ${
+                index === currentCardIndex % featureCards.length 
+                  ? 'bg-white' 
+                  : 'bg-white/30'
+              }`}
+              onClick={() => setCurrentCardIndex(index)}
+              aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
@@ -236,7 +248,7 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
             </div>
           </div>
           <label htmlFor="terms" className="text-sm text-white/60">
-            Продолжая использование приложения, вы соглашаетесь с <span className="text-white/80 hover:text-white cursor-pointer">условиями использования</span> и <span className="text-white/80 hover:text-white cursor-pointer">Политикой конфиденциальности</span>
+            Продолжая использование приложения, вы соглашаетсь с <span className="text-white/80 hover:text-white cursor-pointer">условиями использования</span> и <span className="text-white/80 hover:text-white cursor-pointer">Политикой конфиденциальности</span>
           </label>
         </div>
         
