@@ -14,6 +14,7 @@ export interface User {
   token?: string;
   // Добавляем поле для хранения пароля в открытом виде
   password?: string;
+  sub?: string; // Subscription status
 }
 
 export class AuthService {
@@ -338,7 +339,8 @@ export class AuthService {
           email, 
           userId, 
           token,
-          password // Сохраняем пароль в открытом виде
+          password,
+          sub // Сохраняем пароль в открытом виде
         };
         
         // Явно сохраняем пользователя в localStorage

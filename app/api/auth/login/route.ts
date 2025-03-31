@@ -20,6 +20,10 @@ export async function POST(request: Request) {
     const data = await response.json();
     console.log('Received response from external API:', data);
     
+    // Ensure the 'sub' parameter is included in the response
+    // The response format should be: {"log":"success","msg":"ok","user_id":8,"sub":"n","timestamp":0,"code":200,"verify":0}
+    // This ensures the client receives the subscription status to save in local storage
+    
     return NextResponse.json(data);
   } catch (error) {
     console.error('Login proxy error:', error);
