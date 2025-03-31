@@ -77,13 +77,13 @@ export default function GenerateImagePage() {
       
       // Check if user has a subscription
       if (user && user.sub === 'n') {
-        console.log('User is not subscribed, showing subscription card');
-        // Simulate generation for a moment
+        console.log('User is not subscribed, showing subscription card after delay');
+        // Don't return immediately - let the component update and show loading state
         setTimeout(() => {
           setIsGenerating(false);
           setShowSubscriptionCard(true);
         }, 1500);
-        return;
+        return; // This return now happens after React has had time to render the loading state
       }
       
       let image: any = null;
