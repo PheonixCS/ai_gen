@@ -27,8 +27,8 @@ interface SubscriptionCardProps {
 export default function SubscriptionCard({ onClose }: SubscriptionCardProps): React.ReactElement {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptSubscription, setAcceptSubscription] = useState(false);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
   
   // Feature cards data
   const featureCards = [
@@ -97,27 +97,63 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
   // Create duplicate cards for seamless infinite scrolling
   const displayCards = [...featureCards, ...featureCards, ...featureCards];
   
-  // Set up infinite carousel effect
+  // Set up continuous carousel movement effect
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentCardIndex((prevIndex) => (prevIndex + 1) % featureCards.length);
-    }, 3000);
+    const carousel = carouselRef.current;
+    if (!carousel) return;
     
-    return () => clearInterval(interval);
-  }, [featureCards.length]);
-  
-  // When current index changes, scroll to the appropriate card
-  useEffect(() => {
-    if (carouselRef.current) {
-      // Calculate scroll position - each card is 260px wide with 16px gap (total 276px)
-      const scrollPosition = (currentCardIndex % featureCards.length) * 276;
+    let animationActive = true;
+    let scrollPosition = 0;
+    const cardWidth = 276; // card width (260px) + gap (16px)
+    const totalWidth = cardWidth * featureCards.length;
+    const scrollSpeed = 0.5; // pixels per frame - lower for slower movement
+    
+    const animate = () => {
+      if (!carousel || !animationActive) return;
       
-      carouselRef.current.scrollTo({
-        left: scrollPosition,
-        behavior: 'smooth'
-      });
-    }
-  }, [currentCardIndex, featureCards.length]);
+      scrollPosition += scrollSpeed;
+      
+      // Reset position when we've scrolled one card width
+      if (scrollPosition >= totalWidth) {
+        scrollPosition = 0;
+        carousel.scrollLeft = 0;
+      }
+      
+      carousel.scrollLeft = scrollPosition;
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    // Pause animation when hovering over the carousel
+    const pauseAnimation = () => {
+      animationActive = false;
+    };
+    
+    // Resume animation when mouse leaves
+    const resumeAnimation = () => {
+      animationActive = true;
+      if (animationRef.current === null) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+    
+    carousel.addEventListener('mouseenter', pauseAnimation);
+    carousel.addEventListener('mouseleave', resumeAnimation);
+    carousel.addEventListener('touchstart', pauseAnimation);
+    carousel.addEventListener('touchend', resumeAnimation);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      carousel.removeEventListener('mouseenter', pauseAnimation);
+      carousel.removeEventListener('mouseleave', resumeAnimation);
+      carousel.removeEventListener('touchstart', pauseAnimation);
+      carousel.removeEventListener('touchend', resumeAnimation);
+    };
+  }, [featureCards.length]);
 
   return (
     <div className="bg-[#121212] rounded-xl p-5 max-w-md w-full mx-auto">
@@ -145,32 +181,20 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
         {/* Scrollable carousel */}
         <div 
           ref={carouselRef}
-          className="flex gap-4 overflow-x-hidden py-2 px-2 scroll-smooth"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex gap-4 overflow-x-hidden py-2 px-2"
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}
         >
-          {/* Feature Cards - Duplicated three times for infinite scroll effect */}
+          {/* Feature Cards - Duplicated for infinite scroll effect */}
           {displayCards.map((card, index) => (
             <FeatureCard
               key={`card-${index}`}
               icon={card.icon}
               title={card.title}
               subtitle={card.subtitle}
-            />
-          ))}
-        </div>
-        
-        {/* Carousel indicator dots */}
-        <div className="flex justify-center mt-4 gap-1.5">
-          {featureCards.map((_, index) => (
-            <button
-              key={`dot-${index}`}
-              className={`w-1.5 h-1.5 rounded-full transition-all ${
-                index === currentCardIndex % featureCards.length 
-                  ? 'bg-white' 
-                  : 'bg-white/30'
-              }`}
-              onClick={() => setCurrentCardIndex(index)}
-              aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
