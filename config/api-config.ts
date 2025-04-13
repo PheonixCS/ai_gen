@@ -1,30 +1,60 @@
 /**
- * API Configuration for the application
- * This allows changing the API domain as needed
+ * Configuration for API connections
+ * Based on the API documentation
  */
-
-// Environment detection
-const isDevelopment = process.env.NODE_ENV !== 'production';
-
-// Default API domains
-const PRODUCTION_API_DOMAIN = process.env.NEXT_PUBLIC_API_DOMAIN || 'https://imageni.org';
-const DEVELOPMENT_API_DOMAIN = process.env.NEXT_PUBLIC_DEV_API_DOMAIN || 'https://krazu-group.tech/imageni_clean';
-const DEVELOPMENT_API_DOMAIN_ClEAR = process.env.NEXT_PUBLIC_DEV_API_DOMAIN_CLEAR || 'https://krazu-group.tech';
-// Select the appropriate domain based on environment
-const API_DOMAIN = isDevelopment ? DEVELOPMENT_API_DOMAIN : PRODUCTION_API_DOMAIN;
-
-const config = {
-  domain: API_DOMAIN,
-  clearDomain: isDevelopment ? DEVELOPMENT_API_DOMAIN_ClEAR : PRODUCTION_API_DOMAIN,
-  isDevelopment,
-  proxyEnabled: isDevelopment ? true : process.env.NEXT_PUBLIC_USE_PROXY === 'true',
+const apiConfig = {
+  // Base domain for API calls
+  domain: process.env.NEXT_PUBLIC_API_URL || 'https://api.aiphotogen.com',
+  clearDomain: 'https://api.aiphotogen.com',
+  
+  // Use proxy endpoints through Next.js API routes to avoid CORS issues
+  proxyEnabled: true,
+  
+  // API endpoints based on documentation
   endpoints: {
-    login: '/api_log.php',
-    register: '/api_reg.php',
-    resetPassword: '/api_reset.php',
-    generateImage: '/api_generate.php',
-    userImages: '/api_img.php'
-  }
+    register: '/api/auth/reg.php',
+    login: '/api/auth/login.php',
+    resetPassword: '/api/auth/reset.php',
+    generateImage: '/api/img/img.php',
+    userImages: '/api/img/history.php',
+    subscription: '/api/subscribe/manage.php'
+  },
+
+  // Style presets for image generation
+  stylePresets: [
+    '3d-model',
+    'analog-film',
+    'anime',
+    'comic-book',
+    'digital-art',
+    'enhance',
+    'fantasy-art',
+    'isometric',
+    'line-art',
+    'low-poly',
+    'modeling-compound',
+    'neon-punk',
+    'origami',
+    'photographic',
+    'pixel-art',
+    'tile-texture'
+  ],
+
+  // Output formats for generated images
+  outputFormats: [
+    'webp',
+    'jpeg',
+    'png'
+  ],
+
+  // Available aspect ratios
+  aspectRatios: [
+    '1:1',
+    '4:3',
+    '16:9',
+    '3:4',
+    '9:16'
+  ]
 };
 
-export default config;
+export default apiConfig;

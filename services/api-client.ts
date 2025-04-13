@@ -1,4 +1,5 @@
 import apiConfig from '../config/api-config';
+import endpointsConfig from '../config/endpoints-config';
 import { ApiImagesResponse, GeneratedImage } from './ai_gen.service';
 import {
   BaseResponse,
@@ -10,10 +11,12 @@ import {
 export class ApiClient {
   private baseUrl: string;
   private proxyEnabled: boolean;
+  private useRelativePaths: boolean;
 
-  constructor(baseUrl: string = apiConfig.domain, proxyEnabled: boolean = apiConfig.proxyEnabled) {
+  constructor(baseUrl: string = apiConfig.domain, proxyEnabled: boolean = apiConfig.proxyEnabled, useRelativePaths: boolean = true) {
     this.baseUrl = baseUrl;
     this.proxyEnabled = proxyEnabled;
+    this.useRelativePaths = useRelativePaths;
   }
 
   public setBaseUrl(url: string): void {
@@ -28,193 +31,222 @@ export class ApiClient {
     this.proxyEnabled = enabled;
   }
 
-  async login(email: string, password: string): Promise<ApiResponse> {
-    try {
-      let response;
-      
-      if (this.proxyEnabled) {
-        // Use our Next.js API route to avoid CORS issues
-        console.log('Using proxy API route for login');
-        try {
-          response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
-          });
-          
-          // Check if the response is ok
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Proxy API route returned status ${response.status}: ${errorText}`);
-            // Fall back to direct API call if proxy fails
-            console.log('Falling back to direct API call');
-            this.proxyEnabled = false;
-            return this.login(email, password);
-          }
-        } catch (proxyError) {
-          console.error('Proxy API route error:', proxyError);
-          // Fall back to direct API call if proxy fails
-          console.log('Falling back to direct API call');
-          this.proxyEnabled = false;
-          return this.login(email, password);
-        }
-      } else {
-        // Direct API call (will have CORS issues in browser)
-        console.log('Using direct API call for login');
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.login}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
-      }
-      
-      const data = await response.json();
-      console.log('API response data:', data);
-      
-      // Fix the response structure to ensure consistent format
-      return {
-        code: data.code || 500,
-        message: data.msg || data.message || 'Unknown response',
-        log: data.log || '',
-        userId: data.user_id || 0,
-        sub: data.sub || '',
-        timestamp: data.timestamp || 0,
-        verify: data.verify || 0
-      };
-    } catch (error) {
-      console.error('Login API error:', error);
-      return { code: 500, message: 'Service error occurred' };
+  public enableRelativePaths(enabled: boolean): void {
+    this.useRelativePaths = enabled;
+  }
+
+  private getApiUrl(endpoint: string): string {
+    if (this.useRelativePaths) {
+      // If using relative paths, return just the endpoint path
+      return endpoint;
+    } else {
+      // Otherwise, use the full URL with baseUrl
+      return `${this.baseUrl}${endpoint}`;
     }
   }
 
-  async register(email: string, password: string): Promise<ApiResponse> {
+  /**
+   * Authentication: User login
+   * @param email User email
+   * @param password User password
+   * @returns API response
+   */
+  async login(email: string, password: string): Promise<any> {
     try {
       let response;
       
       if (this.proxyEnabled) {
-        // Use our Next.js API route to avoid CORS issues
-        response = await fetch('/api/auth/register', {
+        // Using proxy (POST method)
+        response = await fetch(endpointsConfig.auth.proxy.login, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password })
         });
       } else {
-        // Direct API call
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.register}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}`);
+        // Direct API call - Updated to use POST method to match documentation
+        const apiUrl = this.getApiUrl(apiConfig.endpoints.login);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            em: email,
+            pass: password
+          })
+        });
       }
       
-      const data = await response.json();
-      
-      return {
-        code: data.code || 500,
-        message: data.msg || data.message || 'Unknown response',
-        log: data.log || '',
-        userId: data.user_id || 0
-      };
+      return await response.json();
     } catch (error) {
-      console.error('Register API error:', error);
-      return { code: 500, message: 'Service error occurred' };
+      console.error("Login error:", error);
+      return { code: 500, message: "Service error" };
     }
   }
 
-  async requestPasswordReset(email: string): Promise<ApiResponse> {
+  /**
+   * Authentication: User registration
+   * @param email User email
+   * @param password User password
+   * @returns API response
+   */
+  async register(email: string, password: string): Promise<any> {
     try {
       let response;
       
       if (this.proxyEnabled) {
-        response = await fetch('/api/auth/reset-password', {
+        // Using proxy (POST method)
+        response = await fetch(endpointsConfig.auth.proxy.register, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, password })
         });
       } else {
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}`);
+        // Direct API call - Updated to use POST method to match documentation
+        const apiUrl = this.getApiUrl(apiConfig.endpoints.register);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            em: email,
+            pass: password
+          })
+        });
       }
       
-      const data = await response.json();
-      
-      return {
-        code: data.code || 500,
-        message: data.msg || data.message || 'Unknown response'
-      };
+      return await response.json();
     } catch (error) {
-      console.error('Password reset request API error:', error);
-      return { code: 500, message: 'Service error occurred' };
+      console.error("Registration error:", error);
+      return { code: 500, message: "Service error" };
     }
   }
 
-  async verifyResetCode(email: string, code: string): Promise<ApiResponse> {
+  /**
+   * Password reset: Request reset code
+   * @param email User email
+   * @returns API response
+   */
+  async requestPasswordReset(email: string): Promise<any> {
     try {
       let response;
       
       if (this.proxyEnabled) {
-        response = await fetch('/api/auth/reset-password', {
+        // Using proxy (POST method)
+        response = await fetch(endpointsConfig.auth.proxy.resetPassword, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email, checkCode: code }),
+          body: JSON.stringify({ email })
         });
       } else {
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}&check_code=${encodeURIComponent(code)}`);
+        // Direct API call - Updated to use POST method to match documentation
+        const apiUrl = this.getApiUrl(apiConfig.endpoints.resetPassword);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            em: email
+          })
+        });
       }
       
-      const data = await response.json();
-      
-      return {
-        code: data.code || 500,
-        message: data.msg || data.message || 'Unknown response'
-      };
+      return await response.json();
     } catch (error) {
-      console.error('Verify reset code API error:', error);
-      return { code: 500, message: 'Service error occurred' };
+      console.error("Password reset request error:", error);
+      return { code: 500, message: "Service error" };
     }
   }
 
-  async changePassword(email: string, code: string, newPassword: string): Promise<ApiResponse> {
+  /**
+   * Password reset: Verify reset code
+   * @param email User email
+   * @param code Reset code to verify
+   * @returns API response
+   */
+  async verifyResetCode(email: string, code: string): Promise<any> {
     try {
-      // Validate that the code is not empty
-      if (!code || code.trim() === '') {
-        console.error('Empty verification code provided to changePassword');
-        return {
-          code: 400,
-          message: 'Verification code is required'
-        };
-      }
-
       let response;
       
       if (this.proxyEnabled) {
-        console.log('Using proxy API route for password change with code:', code);
-        response = await fetch('/api/auth/reset-password', {
+        // Using proxy (POST method)
+        response = await fetch(endpointsConfig.auth.proxy.resetPassword, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ 
-            email, 
-            changeCode: code,
-            password: newPassword 
-          }),
+          body: JSON.stringify({ email, check_code: code })
         });
       } else {
-        // Make sure code is properly encoded in the URL
-        const url = `${this.baseUrl}${apiConfig.endpoints.resetPassword}?em=${encodeURIComponent(email)}&change_code=${encodeURIComponent(code)}&pass=${encodeURIComponent(newPassword)}`;
-        console.log('Password change URL:', url);
-        response = await fetch(url);
+        // Direct API call - Updated to use POST method to match documentation
+        const apiUrl = this.getApiUrl(apiConfig.endpoints.resetPassword);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            em: email,
+            check_code: code
+          })
+        });
       }
       
-      const data = await response.json();
-      
-      return {
-        code: data.code || 500,
-        message: data.msg || data.message || 'Unknown response'
-      };
+      return await response.json();
     } catch (error) {
-      console.error('Change password API error:', error);
-      return { code: 500, message: 'Service error occurred' };
+      console.error("Verify reset code error:", error);
+      return { code: 500, message: "Service error" };
+    }
+  }
+
+  /**
+   * Password reset: Change password with verified reset code
+   * @param email User email
+   * @param code Verified reset code
+   * @param newPassword New password
+   * @returns API response
+   */
+  async changePassword(email: string, code: string, newPassword: string): Promise<any> {
+    try {
+      let response;
+      
+      if (this.proxyEnabled) {
+        // Using proxy (POST method)
+        response = await fetch(endpointsConfig.auth.proxy.resetPassword, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, check_code: code, pass: newPassword })
+        });
+      } else {
+        // Direct API call - Updated to use POST method to match documentation
+        const apiUrl = this.getApiUrl(apiConfig.endpoints.resetPassword);
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            em: email,
+            check_code: code,
+            pass: newPassword
+          })
+        });
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Change password error:", error);
+      return { code: 500, message: "Service error" };
     }
   }
 
@@ -237,25 +269,25 @@ export class ApiClient {
       if (this.proxyEnabled) {
         // Используем Next.js API route для обхода CORS
         console.log('Using proxy API route for image generation');
-        response = await fetch('/imageni_clean/api_generate.php', {
+        response = await fetch(endpointsConfig.imageGeneration.proxy.generate, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(params),
         });
-        
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Proxy API route returned status ${response.status}: ${errorText}`);
-          // Fallback к прямому API вызову
+          // Fallback к прямому API вызову   
           this.proxyEnabled = false;
           return this.generateImage(params);
         }
       } else {
         // Прямой вызов API (будут проблемы с CORS в браузере)
         console.log('Using direct API call for image generation');
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.generateImage}`, {
+        const apiUrl = this.getApiUrl(`${apiConfig.endpoints.generateImage}`);
+        response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -285,25 +317,25 @@ export class ApiClient {
       if (this.proxyEnabled) {
         // Используем Next.js API route для обхода CORS
         console.log('Using proxy API route for getting user images');
-        response = await fetch('/api/user-images', {
+        response = await fetch(endpointsConfig.imageGeneration.proxy.userImages, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ email, password }),
         });
-        
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Proxy API route returned status ${response.status}: ${errorText}`);
-          // Fallback к прямому API вызову
+          // Fallback к прямому API вызову  
           this.proxyEnabled = false;
           return this.getUserImages(email, password);
         }
       } else {
         // Прямой вызов API (будут проблемы с CORS в браузере)
         console.log('Using direct API call for getting user images');
-        response = await fetch(`${this.baseUrl}${apiConfig.endpoints.userImages}`, {
+        const apiUrl = this.getApiUrl(`${apiConfig.endpoints.userImages}`);
+        response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -346,7 +378,6 @@ export class ApiClient {
     try {
       // Используем метод login, который уже возвращает информацию о подписке
       const loginResponse = await this.login(email, password);
-      
       return {
         status: loginResponse.code >= 200 && loginResponse.code < 300 ? 'ok' : 'error',
         is_subscribed: loginResponse.timestamp !== undefined && loginResponse.timestamp > Math.floor(Date.now() / 1000),
@@ -363,6 +394,79 @@ export class ApiClient {
         is_subscribed: false,
         subscription_end: 0
       };
+    }
+  }
+
+  /**
+   * Activates user subscription
+   * @param email User email
+   * @param password User password
+   * @returns Activation status
+   */
+  async activateSubscription(email: string, password: string): Promise<ApiResponse> {
+    try {
+      let response;
+      
+      if (this.proxyEnabled) {
+        response = await fetch(endpointsConfig.subscription.proxy.activate, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password }),
+        });
+      } else {
+        // This would be the direct API call if we're not using a proxy
+        const apiUrl = this.getApiUrl(`${apiConfig.endpoints.subscription}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}&action=activate`);
+        response = await fetch(apiUrl);
+      }
+      
+      const data = await response.json();
+      
+      return {
+        code: data.code || 500,
+        message: data.msg || data.message || 'Unknown response',
+        timestamp: data.timestamp || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 // Default 30 days if not specified
+      };
+    } catch (error) {
+      console.error('Activate subscription API error:', error);
+      return { code: 500, message: 'Service error occurred' };
+    }
+  }
+
+  /**
+   * Deactivates user subscription
+   * @param email User email
+   * @param password User password
+   * @returns Deactivation status
+   */
+  async deactivateSubscription(email: string, password: string): Promise<ApiResponse> {
+    try {
+      let response;
+      
+      if (this.proxyEnabled) {
+        response = await fetch(endpointsConfig.subscription.proxy.deactivate, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password }),
+        });
+      } else {
+        // This would be the direct API call if we're not using a proxy
+        const apiUrl = this.getApiUrl(`${apiConfig.endpoints.subscription}?em=${encodeURIComponent(email)}&pass=${encodeURIComponent(password)}&action=deactivate`);
+        response = await fetch(apiUrl);
+      }
+      
+      const data = await response.json();
+      
+      return {
+        code: data.code || 500,
+        message: data.msg || data.message || 'Unknown response'
+      };
+    } catch (error) {
+      console.error('Deactivate subscription API error:', error);
+      return { code: 500, message: 'Service error occurred' };
     }
   }
 }

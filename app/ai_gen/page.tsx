@@ -26,13 +26,13 @@ export default function GenerateImagePage() {
   };
   // Inside your component, add these state variables
   const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3'>('1:1');
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '4:3' | '16:9' | '3:4' | '9:16'>('1:1');
   const [showSubscriptionCard, setShowSubscriptionCard] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<string>('photographic'); // Default style from API docs
 
   // Add this handler function
-  const handleAspectRatioChange = (ratio: '1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3') => {
+  const handleAspectRatioChange = (ratio: '1:1' | '4:3' | '16:9' | '3:4' | '9:16') => {
     setSelectedAspectRatio(ratio);
-    // Here you would apply the aspect ratio to your image generation parameters
   };
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
@@ -69,6 +69,7 @@ export default function GenerateImagePage() {
     if (!prompt.trim() || isGenerating) return;
     
     setIsGenerating(true);
+    setError(null);
     
     try {
       // Check if user is authenticated
@@ -76,7 +77,7 @@ export default function GenerateImagePage() {
       let user = await authService.getCurrentUser();
       
       // Check if user has a subscription
-      if (user && user.sub === 'n') {
+      if (user && !authService.isSubscribed()) {
         console.log('User is not subscribed, showing subscription card after delay');
         
         // Important: Return a promise and await it to ensure React renders the loading state
@@ -86,72 +87,64 @@ export default function GenerateImagePage() {
         return;
       }
       
-      let image: any = null;
-      let image_url: string | null = null;
-      let isProxy = true;
-      if (!isProxy) {
-      // Using the legacy API method for image generation
-      // image = await aiGenerationService.generateImageWithLegacyApi(
-      //   prompt,
-      //   'photographic', // Default style
-      //   selectedAspectRatio.replace(':', 'x') // Convert "1:1" format to "1x1"
-      // );
-        console.log('Generated image data:', image);
-        
-        if (image.image_url) {
-          setGeneratedImageUrl(image.image_url + '.' + image.format);
-        } else {
-          throw new Error('Failed to get image URL from server');
-        }
-      } else {
-        // alert(1000);
-        let param : GenerateImageParams = {
-          prompt: prompt,
-          style_preset: 'photographic', // Default style
-          aspect_ratio: selectedAspectRatio, // Convert "1:1" format to "1x1"
-          output_format: 'png', // Optional negative prompt
-        }
-        let authService = new AuthService();
-        let user = await authService.getCurrentUser();
-        image = await aiGenerationService.generateImage(
-          param,
-          user?.email || '', // Optional negative prompt
-          user?.password || '', // Optional negative prompt
-        );
-        const proxy_result = await fetch(config.clearDomain + image.image_url) 
-        const data = await proxy_result.json();
-        console.log('proxy_result: ', data);
-        // если proxy_result объект и имеет нужные поля
-        if (
-          typeof data === 'object' && 
-          data !== null && 
-          'images' in data && 
-          Array.isArray(data.images) && 
-          data.images.length > 0
-        ) {
-          let last_image = data.images[data.images.length - 1];
-          console.log('last_image: ', last_image);
-          //db/img/
-          image_url = config.domain + "/db/img/" + data.user_id + "/" + last_image.img_id + '.' + last_image.format;
-          setGeneratedImageUrl(image_url)
-          return;
-          // Дальнейшая работа с last_image
-        }
-      }   
+      // Create parameters object according to API documentation
+      let params: GenerateImageParams = {
+        prompt: prompt,
+        style_preset: selectedStyle, // Use the style preset from API docs
+        aspect_ratio: selectedAspectRatio, // Match the aspect ratio format in API docs
+        output_format: 'png', // Default output format
+      };
       
+      // Get user credentials for authentication
+      let email = user?.email || '';
+      let password = user?.password || '';
+      
+      // Call the API
+      const response = await aiGenerationService.generateImage(
+        params,
+        email,
+        password,
+      );
+      
+      console.log('API Response:', response);
+      
+      // Handle API response according to documentation
+      if (response && response.image_url) {
+        // Use the image_url directly from the API response
+        setGeneratedImageUrl(response.image_url);
+      } else {
+        throw new Error('Failed to get image URL from server');
+      }
     } catch (error) {
       console.error('Error generating image:', error);
       
-      // Проверяем, соответствует ли ошибка нашему типу
+      // Handle API errors according to documentation
       if (typeof error === 'object' && error !== null && 'code' in error) {
-        const api_error = error as ApiError;
-        setError(api_error);
+        const apiError = error as ApiError;
+        setError(apiError);
         
-        if (api_error.code !== 403) {
-          alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+        // Display specific messages based on API error codes
+        switch(apiError.code) {
+          case 403:
+            if (apiError.message === 'daily_limit_exceeded') {
+              // Handle daily limit exceeded
+              console.log('Daily generation limit exceeded');
+            } else if (apiError.message === 'subscription_required') {
+              // Handle subscription required
+              setShowSubscriptionCard(true);
+            }
+            break;
+          case 401:
+            console.log('Authentication error: invalid password');
+            break;
+          case 404:
+            console.log('User not found');
+            break;
+          default:
+            alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
         }
       } else {
-        // Для других ошибок
+        // For other errors
         setError({
           status: 'error',
           message: 'Неизвестная ошибка',

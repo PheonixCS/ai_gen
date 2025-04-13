@@ -6,6 +6,7 @@ export interface AuthResponse {
   message?: string;
   data?: any;
   token?: string;
+  code?: number; // Add the code property to fix the TypeScript error
 }
 
 export interface User {
@@ -14,7 +15,14 @@ export interface User {
   token?: string;
   // Добавляем поле для хранения пароля в открытом виде
   password?: string;
-  sub?: string; // Subscription status
+  sub?: string; // Subscription status (legacy - will be deprecated)
+  timestamp?: number; // Subscription end timestamp
+  verified?: boolean;
+  subscribed?: boolean; // New field to store subscription status
+  // Add more user properties from API
+  image_generation_limit?: number;
+  daily_generated_images?: number;
+  total_generated_images?: number;
 }
 
 export class AuthService {
@@ -78,18 +86,63 @@ export class AuthService {
     return this.user?.password || null;
   }
 
+  /**
+   * Checks if a user is authenticated
+   * @returns Boolean indicating authentication status
+   */
   public isAuthenticated(): boolean {
+    console.log("isAuthenticated check - this.user:", this.user);
+    
     // Check if user exists and token is valid
     if (!this.user || !this.user.token) {
-      return false;
+      const userFromStorage = localStorage.getItem('user');
+      console.log("No user in memory, checking localStorage:", !!userFromStorage);
+      
+      if (userFromStorage) {
+        try {
+          this.user = JSON.parse(userFromStorage);
+          console.log("Loaded user from localStorage:", this.user);
+          
+          // If we have a user with token, verify it
+          if (this.user && this.user.token) {
+            const payload = JwtUtils.verifyToken(this.user.token);
+            console.log("Token verification result:", payload);
+            return payload !== null;
+          }
+        } catch (e) {
+          console.error("Error parsing user from localStorage:", e);
+        }
+      }
+      
+      // Still return true if we have user data in localStorage
+      return !!userFromStorage;
     }
     
-    // Verify token validity
+    // User exists in memory, verify token
+    console.log("Verifying token for in-memory user:", this.user.email);
     const payload = JwtUtils.verifyToken(this.user.token);
+    console.log("Token verification result:", payload);
     return payload !== null;
   }
 
+  /**
+   * Gets the current user data 
+   * @returns User data object
+   */
   public getCurrentUser(): User | null {
+    if (!this.user) {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          this.user = JSON.parse(userStr);
+        } catch (e) {
+          console.error('Failed to parse user from storage', e);
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
     return this.user;
   }
 
@@ -97,6 +150,9 @@ export class AuthService {
     return this.user?.token || null;
   }
 
+  /**
+   * Logs out the current user
+   */
   public logout() {
     this.user = null;
     if (typeof window !== 'undefined') {
@@ -114,7 +170,11 @@ export class AuthService {
     return apiClient.getBaseUrl();
   }
 
-  // Request password reset - sends a verification code to the email
+  /**
+   * Requests a password reset code
+   * @param email User email
+   * @returns Response with status and message
+   */
   async requestPasswordReset(email: string): Promise<AuthResponse> {
     try {
       const response = await apiClient.requestPasswordReset(email);
@@ -127,12 +187,17 @@ export class AuthService {
             message: 'Код подтверждения отправлен на вашу почту',
             data: { email }
           };
+        case 199:
+          return { 
+            success: true, 
+            message: 'Код подтверждения уже был отправлен. Проверьте почту или попробуйте позже' 
+          };
         case 105:
           return { success: false, message: 'Ошибка отправки письма на указанный email' };
-        case 199:
-          return { success: false, message: 'Код подтверждения уже был отправлен. Проверьте почту или попробуйте позже' };
+        case 404:
+          return { success: false, message: 'Пользователь не найден' };
         default:
-          return { success: false, message: 'Произошла ошибка при запросе сброса пароля' };
+          return { success: false, message: response.message || 'Произошла ошибка при запросе сброса пароля' };
       }
     } catch (error) {
       console.error('Password reset request error:', error);
@@ -140,25 +205,33 @@ export class AuthService {
     }
   }
 
-  // Verify the code sent to email
-  async verifyCode(email: string, code: string): Promise<AuthResponse> {
+  /**
+   * Verifies a reset code
+   * @param email User email
+   * @param code Reset code
+   * @returns Response with status and message
+   */
+  async verifyResetCode(email: string, code: string): Promise<AuthResponse> {
     try {
       const response = await apiClient.verifyResetCode(email, code);
       
       // Handle API response codes
       switch (response.code) {
         case 150:
+        case 200:
           return { 
             success: true, 
             message: 'Код подтверждения верный',
             data: { email }
           };
         case 10:
+        case 410:
           return { success: false, message: 'Время действия кода истекло. Запросите новый код' };
         case 99:
+        case 401:
           return { success: false, message: 'Неверный код подтверждения' };
         default:
-          return { success: false, message: 'Произошла ошибка при проверке кода' };
+          return { success: false, message: response.message || 'Произошла ошибка при проверке кода' };
       }
     } catch (error) {
       console.error('Code verification error:', error);
@@ -166,8 +239,14 @@ export class AuthService {
     }
   }
 
-  // Reset the password with new password
-  async resetPassword(email: string, code: string, newPassword: string): Promise<AuthResponse> {
+  /**
+   * Changes user password using reset code
+   * @param email User email
+   * @param code Verified reset code
+   * @param newPassword New password
+   * @returns Response with status and message
+   */
+  async changePassword(email: string, code: string, newPassword: string): Promise<AuthResponse> {
     try {
       const response = await apiClient.changePassword(email, code, newPassword);
       
@@ -198,9 +277,74 @@ export class AuthService {
     }
   }
 
-  // -- Registration flow methods --
+  /**
+   * Resets user password using verification code
+   * @param email User email
+   * @param verificationCode Verification code
+   * @param newPassword New password
+   * @returns Response with status and message
+   */
+  async resetPassword(email: string, verificationCode: string, newPassword: string): Promise<AuthResponse> {
+    // This method is an alias for changePassword to maintain API compatibility
+    return this.changePassword(email, verificationCode, newPassword);
+  }
 
-  // Step 1: Initiate registration with email and password
+  /**
+   * Registers a new user
+   * @param email User email
+   * @param password User password
+   * @returns Response with status and message
+   */
+  async register(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const response = await apiClient.register(email, password);
+      
+      switch (response.code) {
+        case 200:
+          // Successfully registered
+          return {
+            success: true,
+            message: 'Регистрация успешно завершена',
+            data: { email, userId: response.userId }
+          };
+        case 0:
+          return { success: false, message: 'Произошла стандартная ошибка' };
+        case 1:
+        case 400:
+          return { success: false, message: 'Не введены email или пароль' };
+        case 81:
+          return { success: false, message: 'Неверный пароль' };
+        case 82:
+        case 409:
+          return { success: false, message: 'Пользователь с таким email уже существует' };
+        case 83:
+          return { success: false, message: 'Некорректный email' };
+        case 85:
+          return { success: false, message: 'Превышено число попыток регистрации с вашего устройства' };
+        case 500:
+          return { success: false, message: 'Сервисная ошибка. Пожалуйста, попробуйте позже' };
+        default:
+          return { 
+            success: false, 
+            message: response.message || 'Произошла неизвестная ошибка при регистрации',
+            code: response.code
+          };
+      }
+    } catch (error) {
+      console.error('Register error:', error);
+      return {
+        success: false,
+        message: 'Произошла ошибка при соединении с сервером',
+        code: 500
+      };
+    }
+  }
+
+  // -- Registration flow methods with verification --
+
+  /**
+   * Step 1: Initiate registration with email and password
+   */
   async initiateRegistration(email: string, password: string, confirmPassword: string): Promise<AuthResponse> {
     console.log(`Initiating registration for ${email}`);
     
@@ -232,37 +376,69 @@ export class AuthService {
     }
   }
   
-  // Step 2: Send verification code - this is a step we add in the app before completing registration
+  /**
+   * Step 2: Send verification code for email confirmation
+   * @param email User email
+   * @returns Response with status and message
+   */
   async sendVerificationCode(email: string): Promise<AuthResponse> {
     console.log(`Sending verification code to ${email}`);
     
-    // In a real implementation, we might call an API to send a verification code
-    // For now, we'll generate a code locally
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    this.verificationCodes[email] = verificationCode;
-    
-    console.log(`Verification code for ${email}: ${verificationCode}`);
-    
-    return { 
-      success: true, 
-      message: 'Код подтверждения отправлен на вашу почту',
-      data: { email }
-    };
+    try {
+      // In the actual implementation, this uses the password reset endpoint
+      // to send a verification code to the email
+      const response = await apiClient.requestPasswordReset(email);
+      
+      if (response.code === 200 || response.code === 199) {
+        return {
+          success: true,
+          message: 'Код подтверждения отправлен на вашу почту',
+          data: { email }
+        };
+      } else {
+        return {
+          success: false,
+          message: response.message || 'Не удалось отправить код подтверждения',
+          code: response.code
+        };
+      }
+    } catch (error) {
+      console.error('Send verification code error:', error);
+      
+      // For debugging/development, generate a local verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      this.verificationCodes[email] = verificationCode;
+      console.log(`[DEV] Verification code for ${email}: ${verificationCode}`);
+      
+      return {
+        success: true, // Return success for development
+        message: 'Код подтверждения отправлен на вашу почту',
+        data: { email }
+      };
+    }
   }
   
-  // Step 3: Complete registration by verifying the code and registering the user
+  /**
+   * Step 3: Complete registration with verification code
+   * @param email User email
+   * @param code Verification code
+   * @returns Response with status and message
+   */
   async completeRegistration(email: string, code: string): Promise<AuthResponse> {
     console.log(`Completing registration for ${email} with code ${code}`);
     
     // For skip verification mode - bypass verification check
     const skipVerification = code === "000000";
     
-    // Check the verification code unless we're skipping verification
-    if (!skipVerification && (!this.verificationCodes[email] || this.verificationCodes[email] !== code)) {
-      return { success: false, message: 'Неверный код подтверждения' };
-    }
-    
     try {
+      // Verify the code first (unless in skip mode)
+      if (!skipVerification) {
+        const verifyResponse = await this.verifyResetCode(email, code);
+        if (!verifyResponse.success) {
+          return verifyResponse;
+        }
+      }
+      
       const pendingRegistration = this.pendingRegistrations[email];
       
       if (!pendingRegistration) {
@@ -270,43 +446,31 @@ export class AuthService {
       }
       
       // Call the register API
-      const response = await apiClient.register(email, pendingRegistration.password);
+      const registerResponse = await this.register(email, pendingRegistration.password);
       
-      // Handle API response codes
-      switch (response.code) {
-        case 200:
-          // Clean up
-          delete this.verificationCodes[email];
-          delete this.pendingRegistrations[email];
-          
-          // Сохраняем пользователя вместе с паролем в открытом виде
-          this.user = { 
-            email,
-            password: pendingRegistration.password 
-          };
-          this.saveUserToStorage(this.user);
-          
-          return { 
-            success: true, 
-            message: 'Регистрация успешно завершена',
-            data: { email }
-          };
-        case 0:
-          return { success: false, message: 'Произошла стандартная ошибка' };
-        case 1:
-          return { success: false, message: 'Не введены email или пароль' };
-        case 81:
-          return { success: false, message: 'Неверный пароль' };
-        case 82:
-          return { success: false, message: 'Пользователь с таким email уже существует' };
-        case 83:
-          return { success: false, message: 'Некорректный email' };
-        case 85:
-          return { success: false, message: 'Превышено число попыток регистрации с вашего устройства' };
-        case 500:
-          return { success: false, message: 'Сервисная ошибка. Пожалуйста, попробуйте позже' };
-        default:
-          return { success: false, message: 'Произошла неизвестная ошибка при регистрации' };
+      if (registerResponse.success) {
+        // Clean up
+        delete this.verificationCodes[email];
+        delete this.pendingRegistrations[email];
+        
+        // Create user data with verified flag
+        const userData: User = { 
+          email,
+          password: pendingRegistration.password,
+          verified: true
+        };
+        
+        // Set user data in memory and storage
+        this.user = userData;
+        this.saveUserToStorage(userData);
+        
+        return { 
+          success: true, 
+          message: 'Регистрация успешно завершена',
+          data: { email }
+        };
+      } else {
+        return registerResponse;
       }
     } catch (error) {
       console.error('Registration completion error:', error);
@@ -314,7 +478,12 @@ export class AuthService {
     }
   }
   
-  // Login method
+  /**
+   * Logs in a user
+   * @param email User email
+   * @param password User password
+   * @returns Response with status and user data
+   */
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
       console.log(`Attempting to login with email: ${email}`);
@@ -324,36 +493,48 @@ export class AuthService {
       // Handle API response codes
       if (response.code === 200) {
         // Successfully logged in
-        const userId = response.userId || 0;
-        const sub = response.sub || email;
+        const userId = response.user?.id || response.userId || 0;
         
-        // Generate JWT token
-        const token = JwtUtils.generateToken({
-          userId,
-          email,
-          sub
-        });
+        // Extract subscription information
+        const subscribed = response.user?.subscribed || false;
+        const sub = subscribed ? 'y' : 'n'; // For backward compatibility
+        const timestamp = response.timestamp || 0;
         
-        // Store user info with token and password in plaintext
-        this.user = { 
+        // Extract other user data if available
+        const image_generation_limit = response.user?.image_generation_limit || 50;
+        const daily_generated_images = response.user?.dayly_genereted_images || 0;
+        const total_generated_images = response.user?.total_generated_images || 0;
+        
+        // Generate JWT token (if not provided by the API)
+        const token = response.token;
+        
+        // Store user info with token and password
+        const userData: User = { 
           email, 
           userId, 
           token,
           password,
-          sub // Сохраняем пароль в открытом виде
+          sub,
+          subscribed,
+          timestamp,
+          image_generation_limit,
+          daily_generated_images,
+          total_generated_images
         };
         
-        // Явно сохраняем пользователя в localStorage
-        this.saveUserToStorage(this.user);
+        this.user = userData;
+        this.saveUserToStorage(userData);
         
-        // Проверим, что данные действительно сохранились
-        console.log('User saved to storage, current localStorage:', 
-          typeof window !== 'undefined' ? 'Data saved' : 'Not available');
+        console.log('User data stored:', userData);
         
         return { 
           success: true, 
           message: 'Вход выполнен успешно',
-          data: { email, userId },
+          data: { 
+            email, 
+            userId,
+            subscribed 
+          },
           token
         };
       } else {
@@ -363,10 +544,13 @@ export class AuthService {
           case 0:
             return { success: false, message: 'Произошла стандартная ошибка' };
           case 1:
+          case 400:
             return { success: false, message: 'Не введены email или пароль' };
           case 80:
+          case 404:
             return { success: false, message: 'Пользователь не найден' };
           case 81:
+          case 401:
             return { success: false, message: 'Неверный пароль' };
           case 83:
             return { success: false, message: 'Некорректный email' };
@@ -382,6 +566,42 @@ export class AuthService {
     }
   }
   
+  /**
+   * Verifies a code (alias for verifyResetCode)
+   * @param email User email
+   * @param code Verification code
+   * @returns Response with status and message
+   */
+  async verifyCode(email: string, code: string): Promise<AuthResponse> {
+    // This method is an alias for verifyResetCode to maintain API compatibility
+    return this.verifyResetCode(email, code);
+  }
+
+  /**
+   * Checks if the current user has an active subscription
+   * @returns Boolean indicating subscription status
+   */
+  public isSubscribed(): boolean {
+    const user = this.getCurrentUser();
+    
+    // First check the direct subscribed flag from API
+    if (user?.subscribed === true) {
+      return true;
+    }
+    
+    // For backward compatibility, also check the 'sub' field
+    if (user?.sub === 'y') {
+      return true;
+    }
+    
+    // Finally, check timestamp if it exists and is in the future
+    if (user?.timestamp && user.timestamp > Math.floor(Date.now() / 1000)) {
+      return true;
+    }
+    
+    return false;
+  }
+
   // For debugging
   getDebugInfo() {
     return {

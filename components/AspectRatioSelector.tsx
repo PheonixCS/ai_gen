@@ -1,73 +1,53 @@
-import { useState } from 'react';
+import React from 'react';
 
-type AspectRatio = '1:1' | '4:5' | '2:3' | '3:2' | '3:4' | '4:3';
+type AspectRatioType = '1:1' | '4:3' | '16:9' | '3:4' | '9:16';
 
 interface AspectRatioSelectorProps {
-  selectedRatio: AspectRatio;
-  onSelectRatio: (ratio: AspectRatio) => void;
+  selectedRatio: AspectRatioType;
+  onSelectRatio: (ratio: AspectRatioType) => void;
   className?: string;
 }
 
-const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({ 
-  selectedRatio, 
+const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
+  selectedRatio,
   onSelectRatio,
-  className = '' 
+  className = '',
 }) => {
-  // All available aspect ratios with their width/height values for display
-  const ratios: { id: AspectRatio; width: number; height: number }[] = [
-    { id: '1:1', width: 40, height: 40 },
-    { id: '4:5', width: 40, height: 50 },
-    { id: '2:3', width: 40, height: 60 },
-    { id: '3:2', width: 60, height: 40 },
-    { id: '3:4', width: 45, height: 60 },
-    { id: '4:3', width: 60, height: 45 }
+  // Updated aspect ratios based on API documentation
+  const aspectRatios: { ratio: AspectRatioType; label: string }[] = [
+    { ratio: '1:1', label: 'Квадрат' },
+    { ratio: '4:3', label: 'Альбомная' },
+    { ratio: '16:9', label: 'Широкая' },
+    { ratio: '3:4', label: 'Портретная' },
+    { ratio: '9:16', label: 'Вертикальная' },
   ];
 
   return (
-    <div className={`bg-[#151515] rounded-lg p-4 w-full max-w-3xl mx-auto ${className}`}>
-      <div className="mb-2 text-xs text-white/70">Соотношение сторон</div>
-      <div className="flex flex-wrap gap-4 justify-center">
-        {ratios.map(ratio => (
+    <div className={`py-3 px-4 ${className}`}>
+      <div className="font-medium mb-3 text-sm text-white/80">Формат изображения</div>
+      <div className="flex space-x-3 overflow-x-auto pb-2">
+        {aspectRatios.map((item) => (
           <button
-            key={ratio.id}
-            onClick={() => onSelectRatio(ratio.id)}
-            className={`relative flex flex-col items-center gap-2 p-2 rounded-lg transition-all ${
-              selectedRatio === ratio.id 
-              ? 'opacity-100' 
-              : 'opacity-70 hover:opacity-100'
+            key={item.ratio}
+            onClick={() => onSelectRatio(item.ratio)}
+            className={`flex flex-col items-center min-w-[64px] rounded-md p-2 transition-all ${
+              selectedRatio === item.ratio
+                ? 'bg-white/10 border border-[#58E877]/40'
+                : 'bg-white/5 border border-transparent hover:bg-white/8'
             }`}
           >
-            {/* Visual representation of the aspect ratio */}
+            {/* Aspect ratio visualization */}
             <div 
-              className={`relative flex items-center justify-center ${
-                selectedRatio === ratio.id ? 'p-[1px] rounded-lg' : ''
+              className={`w-12 mb-2 bg-white/30 ${
+                item.ratio === '1:1' ? 'h-12' : 
+                item.ratio === '4:3' ? 'h-9' : 
+                item.ratio === '16:9' ? 'h-[6.75px]' : 
+                item.ratio === '3:4' ? 'h-16' : 
+                'h-[21.33px]' // 9:16
               }`}
-              style={{ 
-                background: selectedRatio === ratio.id 
-                  ? 'linear-gradient(to right, #58E877, #FFFBA1)' 
-                  : 'transparent' 
-              }}
-            >
-              <div 
-                className="bg-[#252525] rounded-lg flex items-center justify-center"
-                style={{ 
-                  width: ratio.width, 
-                  height: ratio.height,
-                }}
-              >
-                {/* Inner shape for contrast */}
-                <div 
-                  className="bg-[#333333] rounded-md"
-                  style={{ 
-                    width: ratio.width * 0.7, 
-                    height: ratio.height * 0.7
-                  }}
-                ></div>
-              </div>
-            </div>
-            <span className="text-xs text-center whitespace-nowrap">
-              {ratio.id}
-            </span>
+            />
+            <span className="text-xs">{item.label}</span>
+            <span className="text-[10px] text-white/50">{item.ratio}</span>
           </button>
         ))}
       </div>

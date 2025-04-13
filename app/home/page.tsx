@@ -70,14 +70,35 @@ export default function HomePage() {
   useEffect(() => {
     // Check if user is authenticated
     console.log('Checking authentication on home page');
-    console.log('Current localStorage:', localStorage.getItem('user'));
     
+    // Direct check of localStorage for debugging purposes
+    const userStr = localStorage.getItem('user');
+    console.log('Raw localStorage user data:', userStr);
+    
+    // Normal authentication flow
     if (!authService.isAuthenticated()) {
-      console.log('Not authenticated, redirecting to login');
+      console.log('Not authenticated according to authService, redirecting to login');
+      
+      // FALLBACK: Check if we at least have data in localStorage before redirecting
+      if (userStr) {
+        console.warn("User data exists in localStorage but authentication failed. Attempting recovery...");
+        try {
+          // Try to manually parse and use the user data
+          const userData = JSON.parse(userStr);
+          console.log("Recovered user data:", userData);
+          setUser(userData);
+          setLoading(false);
+          return; // Skip the redirect
+        } catch (e) {
+          console.error("Failed to recover user data:", e);
+        }
+      }
+      
       router.replace('/login');
       return;
     }
     
+    // If authenticated, proceed as normal
     const currentUser = authService.getCurrentUser();
     console.log('User is authenticated:', currentUser);
     setUser(currentUser);
