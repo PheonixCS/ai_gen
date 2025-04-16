@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import payService, { Product } from '@/services/pay.service';
+import PaymentForm from './PaymentForm';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -29,6 +31,40 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
   const [acceptSubscription, setAcceptSubscription] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
+  
+  // State for products and payment form
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+
+  // Fetch available products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const availableProducts = await payService.getProducts();
+        setProducts(availableProducts);
+        
+        // Select trial product (with has_trial=true) by default if available
+        const trialProduct = availableProducts.find(p => p.has_trial);
+        if (trialProduct) {
+          setSelectedProduct(trialProduct);
+        } else if (availableProducts.length > 0) {
+          setSelectedProduct(availableProducts[0]);
+        }
+        
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('Не удалось загрузить данные о продуктах');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
   
   // Feature cards data
   const featureCards = [
@@ -133,6 +169,39 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
     };
   }, [featureCards.length]);
 
+  // Handle product selection
+  const handleProductSelect = (product: Product) => {
+    setSelectedProduct(product);
+  };
+
+  // Handle payment button click
+  const handlePaymentClick = () => {
+    if (!acceptTerms || !acceptSubscription || !selectedProduct) return;
+    setShowPaymentForm(true);
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = () => {
+    onClose();
+    // You might want to refresh subscription status or navigate to a thank you page
+  };
+
+  // If payment form is shown, render it instead
+  if (showPaymentForm && selectedProduct) {
+    return (
+      <PaymentForm 
+        productId={selectedProduct.id}
+        onClose={() => setShowPaymentForm(false)}
+        onSuccess={handlePaymentSuccess}
+        onError={(error) => {
+          console.error('Payment error:', error);
+          setShowPaymentForm(false);
+          setError('Произошла ошибка при оплате');
+        }}
+      />
+    );
+  }
+
   return (
     <div className="bg-[#121212] rounded-xl p-5 max-w-md w-full mx-auto">
       {/* Header */}
@@ -180,32 +249,88 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
         </div>
       </div>
       
-      {/* Subscription plan */}
-      <div className="mb-6 p-0.5 rounded-xl bg-gradient-to-r from-[#58E877] to-[#FFFBA1]">
-        <div className="bg-[#121212] rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-white text-sm">3 дня тест</p>
-              <p className="text-white/60 text-sm line-through">390 ₽</p>
-              <p className="text-white font-medium">1 ₽</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg px-2 py-1">
-            <span className="text-black text-xs font-medium">Выгода 90%</span>
-          </div>
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-800/50 text-red-200 rounded-lg text-sm">
+          {error}
         </div>
+      )}
+      
+      {/* Product Selection */}
+      <div className="mb-6 space-y-3">
+        <h3 className="text-white/80 text-sm font-medium mb-2">Выберите тариф:</h3>
+        
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white mb-2"></div>
+            <p className="text-white/60 text-sm">Загрузка тарифов...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-4 text-white/60">
+            Нет доступных тарифов
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {products.map((product) => (
+              <div 
+                key={product.id}
+                onClick={() => handleProductSelect(product)}
+                className={`cursor-pointer ${
+                  selectedProduct?.id === product.id 
+                    ? 'p-0.5 rounded-xl bg-gradient-to-r from-[#58E877] to-[#FFFBA1]' 
+                    : ''
+                }`}
+              >
+                <div className={`
+                  bg-[#151515] rounded-lg p-4 flex items-center justify-between
+                  ${selectedProduct?.id === product.id ? '' : 'border border-white/10 hover:border-white/20'}
+                `}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white text-sm">
+                        {product.description}
+                        <span className="text-white/60 ml-1">
+                          ({product.period} {product.internal === 'day' ? 'дн.' : product.internal === 'week' ? 'нед.' : 'мес.'})
+                        </span>
+                      </p>
+                    </div>
+                    {product.has_trial && (
+                      <p className="text-white/60 text-xs mt-1">
+                        Пробный период
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    {product.has_trial ? (
+                      <>
+                        <p className="text-white/60 text-xs line-through">{product.amount} ₽</p>
+                        <p className="text-white font-medium">1 ₽</p>
+                      </>
+                    ) : (
+                      <p className="text-white font-medium">{product.amount} ₽</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       
       {/* Payment button */}
       <button 
         className={`w-full h-12 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium flex items-center justify-center mb-4 ${
-          acceptTerms && acceptSubscription 
+          acceptTerms && acceptSubscription && selectedProduct
             ? 'transition-transform hover:scale-[1.02] active:scale-[0.98]' 
             : 'opacity-50 cursor-not-allowed'
         }`}
-        disabled={!acceptTerms || !acceptSubscription}
+        disabled={!acceptTerms || !acceptSubscription || !selectedProduct}
+        onClick={handlePaymentClick}
       >
-        Оплатить 1 ₽
+        {selectedProduct 
+          ? `Оплатить ${selectedProduct.has_trial ? '1 ₽' : selectedProduct.amount + ' ₽'}`
+          : 'Выберите тариф'
+        }
       </button>
       
       {/* Security label */}
@@ -252,7 +377,7 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
             </div>
           </div>
           <label htmlFor="terms" className="text-sm text-white/60">
-            Продолжая использование приложения, вы соглашаетсь с <span className="text-white/80 hover:text-white cursor-pointer">условиями использования</span> и <span className="text-white/80 hover:text-white cursor-pointer">Политикой конфиденциальности</span>
+            Продолжая использование приложения, вы соглашаетсь с <Link href="/legal/terms" className="text-white/80 hover:text-white cursor-pointer">условиями использования</Link> и <Link href="/legal/privacy" className="text-white/80 hover:text-white cursor-pointer">Политикой конфиденциальности</Link>
           </label>
         </div>
         
@@ -288,9 +413,21 @@ export default function SubscriptionCard({ onClose }: SubscriptionCardProps): Re
             </div>
           </div>
           <label htmlFor="subscription" className="text-sm text-white/60">
-            Первый платёж в 1 ₽ за пробный период доступа в личный кабинет на 3 дня, далее, согласно тарифу: 890 ₽ за 7 дней доступа к сервису
+            {selectedProduct?.has_trial
+              ? `Первый платёж в 1 ₽ за пробный период доступа в личный кабинет на ${selectedProduct.period} ${selectedProduct.period === 1 ? 'день' : selectedProduct.period < 5 ? 'дня' : 'дней'}, далее, согласно тарифу: ${selectedProduct.amount} ₽ за ${selectedProduct.period} ${selectedProduct.period === 1 ? 'день' : selectedProduct.period < 5 ? 'дня' : 'дней'} доступа к сервису`
+              : selectedProduct
+                ? `Платёж в размере ${selectedProduct.amount} ₽ за ${selectedProduct.period} ${selectedProduct.period === 1 ? 'день' : selectedProduct.period < 5 ? 'дня' : 'дней'} доступа к сервису`
+                : 'Выберите тариф для отображения условий подписки'
+            }
           </label>
         </div>
+      </div>
+      
+      {/* Add link to offer agreement */}
+      <div className="mt-4 text-center">
+        <Link href="/legal/offer" className="text-white/50 text-xs hover:text-white/70">
+          Договор оферты
+        </Link>
       </div>
     </div>
   );

@@ -18,4 +18,16 @@ export interface SubscriptionResponse extends BaseResponse {
   
   /** Количество дней до окончания подписки */
   days_left?: number;
+  
+  /** Информация о текущем продукте */
+  product?: {
+    id: number;
+    product_id: string;
+    amount: number;
+    period: number;
+    currency: string;
+  };
+
+  /** Информация об автопродлении */
+  auto_renewal?: boolean;
 }

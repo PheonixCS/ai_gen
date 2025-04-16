@@ -15,6 +15,14 @@ import SubscriptionCard from '../../components/SubscriptionCard';
 
 type Tool = 'generate' | 'enhance' | 'background';
 
+// Define a proper interface for API error responses
+interface ApiErrorResponse {
+  code: number;
+  msg: string;
+  current_count?: number;
+  limit?: number;
+}
+
 export default function GenerateImagePage() {
   type ApiError = {
     status: string;
@@ -41,6 +49,8 @@ export default function GenerateImagePage() {
   const [activeTool, setActiveTool] = useState<Tool>('generate');
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [loadingTimeoutId, setLoadingTimeoutId] = useState<NodeJS.Timeout | null>(null);
   // Auto resize textarea based on content
   useEffect(() => {
     if (promptTextareaRef.current) {
@@ -65,99 +75,174 @@ export default function GenerateImagePage() {
     
     return false; // Это не ошибка лимита
   };
+
+  // Function to simulate loading progress
+  const simulateLoadingProgress = (duration: number) => {
+    // Clear any existing timeouts
+    if (loadingTimeoutId) {
+      clearTimeout(loadingTimeoutId);
+    }
+    
+    setProgress(0);
+    
+    // Start time
+    const startTime = Date.now();
+    
+    // Update progress function
+    const updateProgress = () => {
+      const elapsedTime = Date.now() - startTime;
+      const calculatedProgress = Math.min((elapsedTime / duration) * 100, 100);
+      
+      setProgress(calculatedProgress);
+      
+      if (calculatedProgress < 100) {
+        const timeoutId = setTimeout(updateProgress, 50);
+        setLoadingTimeoutId(timeoutId);
+      }
+    };
+    
+    // Start updating progress
+    updateProgress();
+  };
+
   const handleGenerateImage = async () => {
     if (!prompt.trim() || isGenerating) return;
     
     setIsGenerating(true);
     setError(null);
+    setShowSubscriptionCard(false); // Reset subscription card visibility
+    
+    // Create a variable to track if we need to show the subscription card
+    let showSubCard = false;
     
     try {
       // Check if user is authenticated
       let authService = new AuthService();
       let user = await authService.getCurrentUser();
       
-      // Check if user has a subscription
-      if (user && !authService.isSubscribed()) {
-        console.log('User is not subscribed, showing subscription card after delay');
-        
-        // Important: Return a promise and await it to ensure React renders the loading state
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsGenerating(false);
-        setShowSubscriptionCard(true);
-        return;
-      }
+      // Start loading simulation regardless of subscription status
+      simulateLoadingProgress(7000);
       
       // Create parameters object according to API documentation
       let params: GenerateImageParams = {
         prompt: prompt,
-        style_preset: selectedStyle, // Use the style preset from API docs
-        aspect_ratio: selectedAspectRatio, // Match the aspect ratio format in API docs
-        output_format: 'png', // Default output format
+        style_preset: selectedStyle,
+        aspect_ratio: selectedAspectRatio,
+        output_format: 'png',
       };
       
       // Get user credentials for authentication
       let email = user?.email || '';
       let password = user?.password || '';
       
-      // Call the API
-      const response = await aiGenerationService.generateImage(
-        params,
-        email,
-        password,
-      );
-      
-      console.log('API Response:', response);
-      
-      // Handle API response according to documentation
-      if (response && response.image_url) {
-        // Use the image_url directly from the API response
-        setGeneratedImageUrl(response.image_url);
-      } else {
-        throw new Error('Failed to get image URL from server');
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      
-      // Handle API errors according to documentation
-      if (typeof error === 'object' && error !== null && 'code' in error) {
-        const apiError = error as ApiError;
-        setError(apiError);
+      try {
+        const response = await aiGenerationService.generateImage(
+          params,
+          email,
+          password,
+        );
         
-        // Display specific messages based on API error codes
-        switch(apiError.code) {
-          case 403:
-            if (apiError.message === 'daily_limit_exceeded') {
-              // Handle daily limit exceeded
-              console.log('Daily generation limit exceeded');
-            } else if (apiError.message === 'subscription_required') {
-              // Handle subscription required
-              setShowSubscriptionCard(true);
-            }
-            break;
-          case 401:
-            console.log('Authentication error: invalid password');
-            break;
-          case 404:
-            console.log('User not found');
-            break;
-          default:
-            alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+        console.log('API Response:', response);
+        
+        // Check if the response itself contains an error code
+        if (response && 'code' in response && 'msg' in response) {
+          // This is an API error response in the shape of { code: number, msg: string }
+          const apiErrorResponse = response as ApiErrorResponse;
+          
+          if (apiErrorResponse.code === 403 && apiErrorResponse.msg === "subscription_required") {
+            console.log('Subscription required detected in response');
+            showSubCard = true;
+          } else {
+            // For other API error codes, set the error state
+            setError({
+              code: apiErrorResponse.code,
+              message: apiErrorResponse.msg,
+              status: 'error'
+            });
+          }
+        } else if (response && 'image_url' in response) {
+          // If we have a valid image URL, store it
+          setGeneratedImageUrl(response.image_url as string);
+        } else {
+          throw new Error('Failed to get image URL from server');
         }
-      } else {
-        // For other errors
-        setError({
-          status: 'error',
-          message: 'Неизвестная ошибка',
-          code: 500
-        });
-        alert('Произошла ошибка при генерации изображения. Пожалуйста, попробуйте еще раз.');
+      } catch (error) {
+        console.error('API Error:', error);
+        
+        // Check if the error object has the structure we expect
+        if (typeof error === 'object' && error !== null) {
+          if ('code' in error && 'msg' in error) {
+            // Handle API error responses that come through the catch block
+            const apiErrorResponse = error as ApiErrorResponse;
+            
+            if (apiErrorResponse.code === 403 && apiErrorResponse.msg === "subscription_required") {
+              console.log('Subscription required detected in error');
+              showSubCard = true;
+            } else {
+              // For other error types, set the error state
+              setError({
+                code: apiErrorResponse.code,
+                message: apiErrorResponse.msg,
+                status: 'error'
+              });
+            }
+          } else if (error instanceof Error) {
+            // Handle standard Error objects
+            setError({
+              status: 'error',
+              message: error.message,
+              code: 500
+            });
+          } else {
+            // Fallback for non-Error objects
+            setError({
+              status: 'error',
+              message: 'Unknown error',
+              code: 500
+            });
+          }
+        } else {
+          // Fallback for non-object errors
+          setError({
+            status: 'error',
+            message: 'Неизвестная ошибка',
+            code: 500
+          });
+        }
       }
+    } catch (generalError) {
+      console.error('General error in handleGenerateImage:', generalError);
+      
+      let errorMessage = 'Ошибка при обработке запроса';
+      
+      if (generalError instanceof Error) {
+        errorMessage = generalError.message;
+      }
+      
+      setError({
+        status: 'error',
+        message: errorMessage,
+        code: 500
+      });
     } finally {
-      if (!showSubscriptionCard) {
+      // Wait for the full loading animation to complete before showing subscription card or stopping loading
+      setTimeout(() => {
+        if (loadingTimeoutId) {
+          clearTimeout(loadingTimeoutId);
+          setLoadingTimeoutId(null);
+        }
+        
         setIsGenerating(false);
-      }
+        setProgress(0);
+        
+        // Show the subscription card if needed
+        if (showSubCard) {
+          setShowSubscriptionCard(true);
+        }
+      }, 7000);
     }
   };
+
   const handleToolChange = (tool: Tool) => {
     setActiveTool(tool);
   };
@@ -217,13 +302,21 @@ export default function GenerateImagePage() {
         {/* Generated image area - removed visual styling when empty */}
         <div className="mb-8 flex justify-center items-center min-h-[300px] overflow-hidden">
           {isGenerating ? (
-            <div className="flex flex-col items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#58E877] mb-4"></div>
-              <p className="text-white/70">Генерация изображения...</p>
+            <div className="flex flex-col items-center justify-center p-8 w-full">
+              {/* Replace the spinner with progress bar */}
+              <div className="w-full max-w-md mb-4">
+                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#58E877] to-[#FFFBA1] rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+              <p className="text-white/70">Генерация изображения... {Math.round(progress)}%</p>
             </div>
           ) : showSubscriptionCard ? (
             <SubscriptionCard onClose={() => setShowSubscriptionCard(false)} />
-          ) : error?.code === 403 ? (  
+          ) : error?.code === 403 && error.message === 'daily_limit_exceeded' ? (  
             <div className="flex flex-col items-center justify-center p-6 bg-white/5 rounded-xl max-w-md mx-auto">
               <div className="text-red-400 font-medium mb-3 text-center">
                 Вы израсходовали лимит бесплатных генераций ({error.current_count}/{error.limit})
@@ -477,7 +570,7 @@ export default function GenerateImagePage() {
                   <path d="M10.5 4.5V6.75H13.5V4.5H15.75V19.5H8.25V4.5H10.5ZM6.75 3C6.33579 3 6 3.33579 6 3.75V20.25C6 20.6642 6.33579 21 6.75 21H17.25C17.6642 21 18 20.6642 18 20.25V3.75C18 3.33579 17.6642 3 17.25 3H6.75Z" fill="#F0F6F3"/>
                 </svg>
               </div>
-              <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+              <svg width="25" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
                 <path d="M15.4498 8.83337C15.4498 10.6743 13.9574 12.1666 12.1165 12.1666C10.2755 12.1666 8.7832 10.6743 8.7832 8.83337C8.7832 6.99243 10.2755 5.5 12.1165 5.5C13.9574 5.5 15.4498 6.99243 15.4498 8.83337Z" fill="#F0F6F3"/>
                 <path d="M6.61719 19.5H17.6172C17.8932 19.5 18.1172 19.276 18.1172 19V16.6666C18.1172 14.9207 16.6965 13.5 14.9506 13.5H9.28394C7.53784 13.5 6.11719 14.9207 6.11719 16.6666V19C6.11719 19.276 6.34119 19.5 6.61719 19.5Z" fill="#F0F6F3"/>
                 <path d="M5.4502 5.5V6.66663C5.4502 7.03528 5.7489 7.33337 6.11682 7.33337C6.48486 7.33337 6.78357 7.03528 6.78357 6.66663V5.5C6.78357 5.13196 7.08289 4.83337 7.4502 4.83337H8.4502C8.81824 4.83337 9.11682 4.53528 9.11682 4.16663C9.11682 3.79797 8.81824 3.5 8.4502 3.5H7.4502C6.34753 3.5 5.4502 4.39734 5.4502 5.5Z" fill="#F0F6F3"/>

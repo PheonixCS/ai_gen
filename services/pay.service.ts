@@ -1,122 +1,395 @@
-// pay.service.ts
 import config from '../config/api-config';
 
-interface PaymentResponse {
-  pay: 'ok' | 'error';
-  em: string;
-  code: number;
-  user_id?: number;
-  timestamp?: number;
-  debug?: string;
+// Product interfaces
+export interface Product {
+  id: number;
+  product_id: string;
+  description: string;
+  amount: number;
+  period: number;
+  internal: string; // 'day', 'week', 'month'
+  start_day: number;
+  has_trial: boolean;
+  currency: string;
+  platform: string;
 }
 
-interface PaymentError {
-  error: string;
-  code: number;
-  details?: any;
+// Payment response interfaces
+export interface PaymentResponse {
+  success: boolean;
+  message: string;
+  model?: PaymentResponseModel;
+  requires3DS?: boolean;  // Add this property to fix the type error
 }
 
-interface SubscriptionOptions {
+export interface PaymentResponseModel {
+  transactionId?: string;
+  paReq?: string;
+  acsUrl?: string;
+  email?: string;
+  status?: number;
+}
+
+export interface SubscriptionResponse {
+  is_subscribed: boolean;
+  subscription_end: number;
+  plan?: {
+    name?: string;
+    features?: string[];
+  };
+  days_left?: number;
+  status: string;
+  message: string;
+  code: number;
+}
+
+export interface PaymentError {
+  error: number;
+  errorMessage: string;
+  message: string;
+  success: boolean;
+}
+
+// Payment request interfaces
+export interface PaymentRequest {
+  cardCryptogramPacket: string;
   email: string;
-  period?: number; // in days
-  newExpiringDate?: number; // timestamp
+  productId: string;
+  accountId: string;
+  appId: string;
+  ipAddress?: string;
 }
+
+export interface ThreeDsRequest {
+  transactionId: string;
+  paRes: string;
+  appId: string;
+}
+
+export interface SyncRequest {
+  reqUrl: string;
+  password: string;
+  email: string;
+  productId: string;
+}
+
+// Card information interface for generating cryptogram
+export interface CardInfo {
+  cardNumber: string;
+  expDateMonth: string;
+  expDateYear: string;
+  cvv: string;
+  holderName?: string;
+}
+
+// Base URLs
+const DEV_API_URL = 'https://dev.kid-control.com';
+const PROD_API_URL = 'https://billing.mom';
 
 class PayService {
-  private apiUrl: string;
+  private baseUrl: string;
+  private appId: string;
+  private platform: string;
+  private publicId: string; // CloudPayments public ID
+  private proxyUrl: string; // PHP proxy URL
 
   constructor() {
-    this.apiUrl = `${config.domain}/api_pay.php`; // Assuming the endpoint is api_pay.php
+    // Use development URL for now, can be switched with an environment variable
+    this.baseUrl = process.env.NODE_ENV === 'production' ? PROD_API_URL : DEV_API_URL;
+    this.appId = 'imageni.org';
+    this.platform = 'web';
+    this.publicId = 'pk_b9cea9e10438e90910279fea9c6c5'; // Replace with your actual public key
+    
+    // URL to our PHP proxy
+    this.proxyUrl = '/api/pay/pay.php';
   }
 
   /**
-   * Process subscription payment
-   * @param options Subscription options including email and either period or expiration date
-   * @returns Promise with payment response or error
+   * Generate a cryptogram for secure card payment
+   * @param cardInfo Card information including number, expiration date, and CVV
+   * @returns Promise with the generated cryptogram or error
    */
-  async processSubscription(options: SubscriptionOptions): Promise<PaymentResponse> {
-    try {
-      // Validate required fields
-      if (!options.email) {
-        throw { error: 'Email is required', code: -400 };
-      }
-
-      // At least one of period or newExpiringDate must be provided
-      if (!options.period && !options.newExpiringDate) {
-        throw { error: 'Either period or expiration date must be provided', code: -400 };
-      }
-
-      // Prepare form data similar to PHP implementation
-      const formData = new FormData();
-      formData.append('em', encodeURIComponent(options.email));
+  async generateCryptogram(cardInfo: CardInfo): Promise<string> {
+    // Make sure we're in a browser environment
+    if (typeof window === 'undefined') {
+      throw new Error('Функция доступна только в браузере');
+    }
+  
+    // First, ensure the CloudPayments SDK is loaded
+    if (!window.cp) {
+      console.log('CloudPayments SDK не загружен. Загрузка...');
       
-      if (options.period) {
-        formData.append('period', options.period.toString());
-      }
-      
-      if (options.newExpiringDate) {
-        formData.append('newExpiringDate', options.newExpiringDate.toString());
-      }
-
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.cloudpayments.ru/checkout.js';
+        script.async = true;
+        script.onload = () => {
+          // Give it a moment to initialize
+          setTimeout(resolve, 300);
+        };
+        script.onerror = () => reject(new Error('Не удалось загрузить CloudPayments SDK'));
+        document.head.appendChild(script);
       });
+    }
+    
+    // Ensure the SDK is now loaded
+    if (!window.cp) {
+      throw new Error('CloudPayments SDK не загружен после попытки динамической загрузки');
+    }
+    
+    try {
+      // Создаем экземпляр класса CloudPayments вместо Checkout
+      const cp = new window.cp.Checkout({
+        publicId: 'pk_b9cea9e10438e90910279fea9c6c5',
+      });
+      const fieldValues = {
+        cvv: cardInfo.cvv,
+        cardNumber: cardInfo.cardNumber,
+        expDateMonth: cardInfo.expDateMonth,
+        expDateYear: cardInfo.expDateYear,
+      };
 
+      return await cp.createPaymentCryptogram(fieldValues)
+      
+    } catch (error) {
+      console.error('Ошибка генерации криптограммы:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process payment using the generated cryptogram
+   * @param email User email
+   * @param productId Product ID to purchase
+   * @param cryptogram Generated payment cryptogram
+   * @param deviceId Optional device identifier
+   * @returns Payment response
+   */
+  async processPaymentWithCryptogram(
+    email: string, 
+    productId: number, 
+    cryptogram: string, 
+    deviceId: string = 'web'
+  ): Promise<PaymentResponse> {
+    const accountId = this.generateAccountId(deviceId, email);
+    
+    const request: PaymentRequest = {
+      cardCryptogramPacket: cryptogram,
+      email: email,
+      productId: String(productId),
+      accountId: accountId,
+      appId: this.appId
+    };
+    
+    return this.processPayment(request);
+  }
+
+  /**
+   * Get all available products for the current app and platform
+   */
+  async getProducts(): Promise<Product[]> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=getProducts&platform=${this.platform}&app_id=${this.appId}`;
+      const response = await fetch(url);
+      
       if (!response.ok) {
-        throw { error: 'Network response was not ok', code: response.status };
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const products: Product[] = await response.json();
+      return products;
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+  }
 
+  /**
+   * Get a specific product by ID
+   */
+  async getProductById(productId: number): Promise<Product> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=getProductById&productId=${productId}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const product: Product = await response.json();
+      return product;
+    } catch (error) {
+      console.error(`Error fetching product ${productId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Make a payment request with card details
+   * This should be called after creating a cryptogram with CloudPayments SDK
+   */
+  async processPayment(request: PaymentRequest): Promise<PaymentResponse> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=processPayment`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
       const data: PaymentResponse = await response.json();
-
-      if (data.pay === 'error') {
-        throw { error: 'Payment processing failed', code: data.code, details: data };
+      
+      // If success is false and we have 3DS data, the payment requires 3DS verification
+      if (!data.success && data.model && data.model.acsUrl) {
+        return {
+          ...data,
+          requires3DS: true,
+        };
       }
-
+      
       return data;
     } catch (error) {
-      console.error('Payment error:', error);
-      throw this.normalizeError(error);
+      console.error('Payment processing error:', error);
+      throw error;
     }
   }
 
   /**
-   * Process trial subscription (1 RUB for 3 days)
-   * @param email User email
-   * @returns Promise with payment response
+   * Handle 3DS verification after payment attempt
    */
-  async processTrialSubscription(email: string): Promise<PaymentResponse> {
-    // Calculate expiration date (now + 3 days)
-    const trialPeriodDays = 3;
-    const trialExpiration = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * trialPeriodDays);
-    
-    return this.processSubscription({
-      email,
-      newExpiringDate: trialExpiration
-    });
+  async process3DSVerification(request: ThreeDsRequest): Promise<PaymentResponse> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=process3DS`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
+      const data: PaymentResponse = await response.json();
+      return data;
+    } catch (error) {
+      console.error('3DS verification error:', error);
+      throw error;
+    }
   }
 
   /**
-   * Process regular subscription
-   * @param email User email
-   * @param periodDays Subscription period in days (7, 30, etc.)
-   * @returns Promise with payment response
+   * Synchronize subscription with the main application server
+   * Should be called after successful payment
    */
-  async processRegularSubscription(email: string, periodDays: number): Promise<PaymentResponse> {
-    return this.processSubscription({
-      email,
-      period: periodDays
-    });
+  async syncSubscription(request: SyncRequest): Promise<any> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=syncSubscription`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Subscription sync error:', error);
+      throw error;
+    }
   }
 
-  private normalizeError(error: any): PaymentError {
-    if (error instanceof Error) {
-      return { error: error.message, code: -500 };
+  /**
+   * Check the current subscription status
+   */
+  async checkSubscription(email: string): Promise<SubscriptionResponse> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=checkSubscription`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, appId: this.appId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
+      const data = await response.json();
+      
+      // Transform the response to match our SubscriptionResponse interface
+      const subscriptionResponse: SubscriptionResponse = {
+        is_subscribed: data.active || false,
+        subscription_end: data.expiryDate || 0,
+        days_left: data.daysLeft || 0,
+        status: data.success ? 'ok' : 'error',
+        message: data.message || '',
+        code: data.success ? 200 : 400,
+        plan: data.plan ? {
+          name: data.plan.name || 'Unknown',
+          features: data.plan.features || []
+        } : undefined
+      };
+      
+      return subscriptionResponse;
+    } catch (error) {
+      console.error('Subscription check error:', error);
+      throw error;
     }
-    return error;
+  }
+
+  /**
+   * Cancel the current subscription
+   */
+  async cancelSubscription(email: string): Promise<any> {
+    try {
+      const url = `${this.proxyUrl}?endpoint=cancelSubscription`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, appId: this.appId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Subscription cancellation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate an account ID from device ID and email
+   */
+  generateAccountId(deviceId: string, email: string): string {
+    return `${deviceId}.${email}`;
   }
 }
 

@@ -117,7 +117,8 @@ export default function HomePage() {
       return;
     }
     
-    router.push(`/tools/${toolId}`);
+    // Navigate to ai_gen page for all tools
+    router.push('/ai_gen');
   };
 
   if (loading) {
@@ -137,8 +138,8 @@ export default function HomePage() {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* History icon */}
-          <button className="w-10 h-10 rounded-full bg-[#151515] flex items-center justify-center hover:bg-[#252525] transition-all" aria-label="История генераций">
+          {/* History icon - Updated with link to history page */}
+          <Link href="/history" className="w-10 h-10 rounded-full bg-[#151515] flex items-center justify-center hover:bg-[#252525] transition-all" aria-label="История генераций">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8V12L15 15" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M3.05176 11.5C3.27428 8.31764 5.33646 5.6277 8.23965 4.49587C11.1428 3.36404 14.4569 4.00002 16.75 6.00002" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -146,7 +147,7 @@ export default function HomePage() {
               <path d="M17 3L21 6L17 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M7 21L3 18L7 15" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-          </button>
+          </Link>
           
           {/* Profile icon */}
           <Link href="/profile" className="w-10 h-10 rounded-full bg-[#151515] flex items-center justify-center hover:bg-[#252525] transition-all" aria-label="Настройки профиля">
@@ -207,7 +208,7 @@ export default function HomePage() {
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent triggering the parent card's click
                       if (!tool.comingSoon) {
-                        router.push(`/tools/${tool.id}`);
+                        router.push('/ai_gen');
                       }
                     }}
                     className={`absolute top-3 right-3 w-8 h-8 bg-[#151515]/60 backdrop-blur-sm rounded-lg 
@@ -216,7 +217,7 @@ export default function HomePage() {
                       hover:scale-110 hover:shadow-[0_0_10px_rgba(88,232,119,0.5)]
                       active:scale-95 
                       ${tool.comingSoon ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    aria-label={`Перейти к инструменту ${tool.title}`}
+                    aria-label={`Перейти к генерации изображения`}
                     disabled={tool.comingSoon}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

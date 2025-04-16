@@ -1,33 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "AI Photo Generator",
-  description: "Generate AI photos with modern techniques",
+  title: "ImageNI",
+  description: "AI Photo Generator",
 };
 
-// Initialize authentication in both client and server environments
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="ru">
+      <head>
+        {/* Add these scripts to properly load CloudPayments */}
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+        {/* <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" defer></script> */}
+        <script src="https://checkout.cloudpayments.ru/checkout.js"></script>
+      </head>
+      <body className={inter.className}>
         {children}
       </body>
     </html>

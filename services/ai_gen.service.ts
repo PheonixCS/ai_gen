@@ -126,9 +126,33 @@ export interface LegacyApiResponse {
   answer?: any;         // Answer data when generating a new image
 }
 
+// Updated API error response interface
+export interface ApiErrorResponse {
+  code: number;
+  msg: string;
+  current_count?: number;
+  limit?: number;
+}
+
+// Updated API success response interface
+export interface ApiSuccessResponse {
+  status: string;
+  image_id: string;
+  image_url: string;
+  prompt: string;
+  style: string;
+  format: string;
+  created: number;
+  is_subscribed: boolean;
+  image_count: number;
+}
+
+// Union type for all possible API responses
+export type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
+
 class AIGenerationService {
   // Generate image according to API documentation
-  async generateImage(params: GenerateImageParams, email: string, password: string): Promise<ApiImagesResponse> {
+  async generateImage(params: GenerateImageParams, email: string, password: string): Promise<ApiResponse> {
     try {
       // Create form data to match what the PHP backend expects
       const formData = new URLSearchParams();
@@ -156,11 +180,17 @@ class AIGenerationService {
   }
 
   // Get image history according to API documentation
-  async getImageHistory(email: string, password: string) {
+  async getImageHistory(email: string, password: string): Promise<any> {
     try {
-      const response = await axios.post(`/api/img/history.php`, {
-        em: email,
-        pass: password
+      // Create form data to match what the PHP backend expects
+      const formData = new URLSearchParams();
+      formData.append('em', email);
+      formData.append('pass', password);
+
+      const response = await axios.post(`/api/img/history.php`, formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        }
       });
       
       return response.data;
