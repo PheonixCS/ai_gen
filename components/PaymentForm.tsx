@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import payService, { CardInfo, Product } from '@/services/pay.service';
 import authService from '@/services/auth.service';
+import config from '@/config/api-config';
 
 interface PaymentFormProps {
   onClose?: () => void;
@@ -176,37 +177,98 @@ export default function PaymentForm({ onClose, productId, onSuccess, onError }: 
       // Process payment with the cryptogram
       const paymentResult = await payService.processPaymentWithCryptogram(
         userEmail,
-        selectedProduct.id,
+        selectedProduct.product_id,
         cryptogram
       );
       
-      // Check if 3DS verification is needed
+      // Обрабатываем 3DS верификацию
       if (paymentResult.requires3DS && paymentResult.model?.acsUrl && paymentResult.model?.paReq && paymentResult.model?.transactionId) {
         console.log('3DS verification required');
         
-        // Save 3DS data for later verification
+        // Сохраняем данные 3DS для последующей верификации
         setThreeDsData({
           transactionId: paymentResult.model.transactionId,
           paReq: paymentResult.model.paReq,
           acsUrl: paymentResult.model.acsUrl
         });
         
-        // Build the iframe URL with the required parameters
-        const termUrl = window.location.origin + '/payment/3ds-callback';
-        const form = `
-          <form name="downloadForm" action="${paymentResult.model.acsUrl}" method="POST">
-            <input type="hidden" name="PaReq" value="${paymentResult.model.paReq}" />
-            <input type="hidden" name="MD" value="${paymentResult.model.transactionId}" />
-            <input type="hidden" name="TermUrl" value="${termUrl}" />
-          </form>
-          <script>document.downloadForm.submit();</script>
+        // Устанавливаем стадию 3ds для UI
+        setStage('3ds');
+        
+        // Формируем корректный termUrl - изменяем на PHP обработчик
+        const termUrl = `${window.location.origin}/api/pay/3dscallback.php`;
+        
+        // Создаем форму для отправки в новом окне - упрощенная версия без текста
+        const html = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>3D Secure</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  background: #0F0F0F;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  margin: 0;
+                }
+                .loader {
+                  border: 4px solid rgba(255,255,255,0.2);
+                  border-radius: 50%;
+                  border-top: 4px solid #3498db;
+                  width: 50px;
+                  height: 50px;
+                  animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="loader"></div>
+              
+              <form name="secure3DForm" action="${paymentResult.model.acsUrl}" method="POST">
+                <input type="hidden" name="PaReq" value="${paymentResult.model.paReq}" />
+                <input type="hidden" name="MD" value="${paymentResult.model.transactionId}" />
+                <input type="hidden" name="TermUrl" value="${termUrl}" />
+              </form>
+              
+              <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                  setTimeout(function() {
+                    document.secure3DForm.submit();
+                  }, 100);
+                });
+              </script>
+            </body>
+          </html>
         `;
         
-        // Set the iframe URL and move to 3DS stage
-        const blob = new Blob([form], { type: 'text/html' });
-        setIframeUrl(URL.createObjectURL(blob));
-        setStage('3ds');
-      } else if (paymentResult.success) {
+        // Создаем Blob и URL
+        const blob = new Blob([html], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Открываем новое окно
+        const popupWindow = window.open(
+          blobUrl, 
+          '3DSecureVerification',
+          'width=600,height=550,resizable=yes,scrollbars=yes,status=yes'
+        );
+        
+        if (popupWindow) {
+          console.log('Окно 3DS верификации открыто');
+        } else {
+          setError('Для завершения платежа разрешите открытие всплывающих окон в вашем браузере');
+          setStage('error');
+        }
+      }
+      else if (paymentResult.success) {
         // Payment successful without 3DS
         console.log('Payment successful without 3DS');
         setStage('success');
@@ -228,58 +290,168 @@ export default function PaymentForm({ onClose, productId, onSuccess, onError }: 
     }
   };
 
-  // Handle 3DS callback from iframe
-  const handle3DSCallback = async (paRes: string) => {
-    if (!threeDsData || !userEmail) return;
+  // Handle 3DS callback from iframe or popup window
+  const handle3DSCallback = async (paRes: string, transactionId?: string) => {
+    console.log('Получен 3DS callback с paRes:', paRes ? 'Получен' : 'Отсутствует');
+    console.log('threeDsData:', threeDsData);
+    
+    // Используем либо полученный transactionId, либо из сохраненных 3DS данных
+    const txId = transactionId || (threeDsData && threeDsData.transactionId);
+    
+    if (!txId || !userEmail) {
+      console.error('Отсутствуют необходимые данные для 3DS верификации');
+      setError('Не удалось получить данные для 3DS верификации');
+      setStage('error');
+      return;
+    }
     
     setLoading(true);
+    console.log('Отправка запроса на верификацию 3DS', {
+      transactionId: txId,
+      paRes: paRes,
+      appId: config.appId
+    });
     
     try {
       const result = await payService.process3DSVerification({
-        transactionId: threeDsData.transactionId,
-        paRes: paRes,
-        appId: 'imageni.org'
+        MD: txId,
+        PaRes: paRes,
+        AppId: config.appId
       });
       
+      console.log('3DS verification result:', result);
       if (result.success) {
-        // 3DS verification successful
-        setStage('success');
-        onSuccess && onSuccess();
+        // 3DS verification successful - activate the subscription
+        try {
+          await activateUserSubscription();
+          setStage('success');
+          onSuccess && onSuccess();
+        } catch (subError) {
+          console.error('Failed to activate subscription:', subError);
+          // Still mark payment as successful even if subscription activation fails
+          // This ensures we don't lose track of successful payments
+          setStage('success');
+          onSuccess && onSuccess();
+        }
       } else {
-        // 3DS verification failed
+        // 3DS verification failed - display the error message from the response
         setError(result.message || 'Ошибка при 3DS верификации');
         setStage('error');
         onError && onError(result);
       }
     } catch (err: any) {
       console.error('3DS verification error:', err);
-      setError(err.message || 'Произошла ошибка при 3DS верификации');
+      // Check if the error is a structured response with a message property
+      if (err && typeof err === 'object') {
+        setError(err.message || err.errorMessage || 'Произошла ошибка при 3DS верификации');
+      } else {
+        setError('Произошла ошибка при 3DS верификации');
+      }
       setStage('error');
       onError && onError(err);
     } finally {
       setLoading(false);
     }
   };
-
-  // Listen for 3DS callback messages from the iframe
-  useEffect(() => {
-    if (stage !== '3ds') return;
+  
+  // Function to activate user's subscription
+  const activateUserSubscription = async () => {
+    if (!userEmail) {
+      throw new Error('User email not found');
+    }
     
+    // Get current authentication token
+    const token = authService.getToken();
+    if (!token) {
+      throw new Error('Authentication token not found');
+    }
+    
+    console.log('Activating subscription for user:', userEmail);
+    
+    const response = await fetch('/api/subscribe/manage.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'activate',
+        token: token
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || 'Failed to activate subscription');
+    }
+    
+    const result = await response.json();
+    console.log('Subscription activation result:', result);
+    
+    return result;
+  };
+
+  // Слушатель сообщений от 3DS окна
+  useEffect(() => {
+    console.log('Установка слушателя сообщений, текущая стадия:', stage);
+    
+    // Функция обработки сообщений от окна 3DS
     const handleMessage = (event: MessageEvent) => {
-      // Verify origin for security
-      if (event.origin !== window.location.origin) return;
+      console.log('Получено сообщение:', event.data, 'от источника:', event.origin);
       
-      if (event.data && event.data.paRes) {
-        handle3DSCallback(event.data.paRes);
+      // Принимаем сообщения с paRes (от 3DS страницы)
+      if ((stage === 'processing' || stage === '3ds') && 
+          event.data && typeof event.data === 'object' && 
+          event.data.paRes && (event.data.transactionId || event.data.md)) {
+        
+        console.log('Получено сообщение с paRes и transactionId/md, вызов handle3DSCallback');
+        handle3DSCallback(
+          event.data.paRes, 
+          event.data.transactionId || event.data.md
+        );
+      } else {
+        console.log('Сообщение игнорировано: неверная стадия или отсутствуют необходимые данные');
       }
     };
     
+    // Функция проверки localStorage
+    const checkLocalStorage = () => {
+      try {
+        const storedDataStr = localStorage.getItem('3ds_result');
+        if (!storedDataStr) return;
+        
+        const storedData = JSON.parse(storedDataStr);
+        const timestamp = storedData.timestamp || 0;
+        const now = Date.now();
+        
+        // Обрабатываем только свежие данные (не старше 5 минут)
+        if ((now - timestamp) < 5 * 60 * 1000 &&
+            storedData.paRes && (storedData.transactionId || storedData.md) &&
+            (stage === 'processing' || stage === '3ds')) {
+          
+          console.log('Получены свежие данные из localStorage');
+          localStorage.removeItem('3ds_result'); // Удаляем, чтобы избежать повторной обработки
+          
+          handle3DSCallback(
+            storedData.paRes,
+            storedData.transactionId || storedData.md
+          );
+        }
+      } catch (e) {
+        console.error('Ошибка при обработке данных из localStorage:', e);
+      }
+    };
+    
+    // Регистрируем слушатель сообщений
     window.addEventListener('message', handleMessage);
+    
+    // Настраиваем проверку localStorage каждую секунду
+    const interval = setInterval(checkLocalStorage, 1000);
     
     return () => {
       window.removeEventListener('message', handleMessage);
+      clearInterval(interval);
     };
-  }, [stage, threeDsData, userEmail]);
+  }, [stage, threeDsData, userEmail]); // Добавляем userEmail в зависимости
 
   // Render products selection view
   const renderProductsView = () => (

@@ -61,9 +61,9 @@ export interface PaymentRequest {
 }
 
 export interface ThreeDsRequest {
-  transactionId: string;
-  paRes: string;
-  appId: string;
+  MD: string;
+  PaRes: string;
+  AppId: string;
 }
 
 export interface SyncRequest {
@@ -95,9 +95,9 @@ class PayService {
 
   constructor() {
     // Use development URL for now, can be switched with an environment variable
-    this.baseUrl = process.env.NODE_ENV === 'production' ? PROD_API_URL : DEV_API_URL;
-    this.appId = 'imageni.org';
-    this.platform = 'web';
+    this.baseUrl = config.NODE_ENV === 'production' ? PROD_API_URL : DEV_API_URL;
+    this.appId = config.NODE_ENV === 'production' ? 'imageni.org' : "test.app1";
+    this.platform = config.NODE_ENV === 'production' ? 'web' : 'ios';
     this.publicId = 'pk_b9cea9e10438e90910279fea9c6c5'; // Replace with your actual public key
     
     // URL to our PHP proxy
@@ -167,7 +167,7 @@ class PayService {
    */
   async processPaymentWithCryptogram(
     email: string, 
-    productId: number, 
+    productId: string, 
     cryptogram: string, 
     deviceId: string = 'web'
   ): Promise<PaymentResponse> {
@@ -176,7 +176,7 @@ class PayService {
     const request: PaymentRequest = {
       cardCryptogramPacket: cryptogram,
       email: email,
-      productId: String(productId),
+      productId: productId,
       accountId: accountId,
       appId: this.appId
     };

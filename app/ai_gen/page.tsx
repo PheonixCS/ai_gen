@@ -250,43 +250,32 @@ export default function GenerateImagePage() {
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-white flex flex-col">
       {/* Header */}
-      <header className="p-4 md:p-6 flex justify-between items-center border-b border-white/10">
-        <div className="flex items-center">
-          <button 
-            onClick={() => router.back()} 
-            className="flex items-center justify-center hover:opacity-80 transition-opacity"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16.1252 20.9999C15.9332 20.9999 15.7412 20.9264 15.5949 20.7802L7.34494 12.5302C7.05169 12.2369 7.05169 11.7629 7.34494 11.4697L15.5949 3.21969C15.8882 2.92644 16.3622 2.92644 16.6554 3.21969C16.9487 3.51294 16.9487 3.98694 16.6554 4.28019L8.93569 11.9999L16.6554 19.7197C16.9487 20.0129 16.9487 20.4869 16.6554 20.7802C16.5092 20.9264 16.3172 20.9999 16.1252 20.9999Z" fill="#F0F6F3"/>
-            </svg>
-          </button>
-        </div>
+      <header className="p-3 flex justify-between items-center border-b border-white/10">
+        <button 
+          onClick={() => router.back()} 
+          className="hover:opacity-80 transition-opacity"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.1252 20.9999C15.9332 20.9999 15.7412 20.9264 15.5949 20.7802L7.34494 12.5302C7.05169 12.2369 7.05169 11.7629 7.34494 11.4697L15.5949 3.21969C15.8882 2.92644 16.3622 2.92644 16.6554 3.21969C16.9487 3.51294 16.9487 3.98694 16.6554 4.28019L8.93569 11.9999L16.6554 19.7197C16.9487 20.0129 16.9487 20.4869 16.6554 20.7802C16.5092 20.9264 16.3172 20.9999 16.1252 20.9999Z" fill="#F0F6F3"/>
+          </svg>
+        </button>
         
-        {/* Center title */}
-        <h2 className="text-[18px] leading-[24px] font-semibold text-center">
-          Генерация фото
-        </h2>
+        <h2 className="text-[16px] font-medium">Генерация фото</h2>
         
-        <div className="flex items-center">
-          <button 
-            onClick={() => router.push('/home')} 
-            className="flex items-center justify-center hover:opacity-80 transition-opacity"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <mask id="mask0_1490_514" style={{ maskType: 'luminance' }} maskUnits="userSpaceOnUse" x="3" y="3" width="18" height="18">
-                <path d="M3 3H21V21H3V3Z" fill="white"/>
-              </mask>
-              <g mask="url(#mask0_1490_514)">
-                <path d="M12.4411 4.64344C12.1782 4.45219 11.8219 4.45219 11.5589 4.64344L3.30892 10.6435C3.0462 10.8345 2.93635 11.173 3.03681 11.4819C3.13727 11.7909 3.4252 12 3.75005 12H5.25005V18.75C5.25005 19.1642 5.58583 19.5 6.00005 19.5H18.0001C18.4143 19.5 18.7501 19.1642 18.7501 18.75V12H20.2501C20.5749 12 20.8628 11.7909 20.9633 11.4819C21.0637 11.173 20.9539 10.8345 20.6912 10.6435L12.4411 4.64344Z" fill="#F0F6F3"/>
-              </g>
-            </svg>
-          </button>
-        </div>
+        <button 
+          onClick={() => router.push('/home')} 
+          className="hover:opacity-80 transition-opacity"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12.4411 4.64344C12.1782 4.45219 11.8219 4.45219 11.5589 4.64344L3.30892 10.6435C3.0462 10.8345 2.93635 11.173 3.03681 11.4819C3.13727 11.7909 3.4252 12 3.75005 12H5.25005V18.75C5.25005 19.1642 5.58583 19.5 6.00005 19.5H18.0001C18.4143 19.5 18.7501 19.1642 18.7501 18.75V12H20.2501C20.5749 12 20.8628 11.7909 20.9633 11.4819C21.0637 11.173 20.9539 10.8345 20.6912 10.6435L12.4411 4.64344Z" fill="#F0F6F3"/>
+          </svg>
+        </button>
       </header>
 
       {/* Main content */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
         {/* Prompt input area - removed visual styling */}
+        {!showSubscriptionCard && (
         <div className="mb-6">
           <textarea
             ref={promptTextareaRef}
@@ -298,6 +287,7 @@ export default function GenerateImagePage() {
             rows={3}
           ></textarea>
         </div>
+        )}
 
         {/* Generated image area - removed visual styling when empty */}
         <div className="mb-8 flex justify-center items-center min-h-[300px] overflow-hidden">
@@ -319,17 +309,17 @@ export default function GenerateImagePage() {
           ) : error?.code === 403 && error.message === 'daily_limit_exceeded' ? (  
             <div className="flex flex-col items-center justify-center p-6 bg-white/5 rounded-xl max-w-md mx-auto">
               <div className="text-red-400 font-medium mb-3 text-center">
-                Вы израсходовали лимит бесплатных генераций ({error.current_count}/{error.limit})
+                Вы израсходовали лимит генераций на сегодня.
               </div>
-              <p className="text-white/70 text-sm mb-4 text-center">
+              {/* <p className="text-white/70 text-sm mb-4 text-center">
                 Для неограниченного доступа оформите PRO подписку
-              </p>
-              <button 
+              </p> */}
+              {/* <button 
                 onClick={() => window.location.href = '/subscribe'} // Замените на ваш путь
                 className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Активировать PRO доступ
-              </button>
+              </button> */}
             </div>
           ) : generatedImageUrl ? (
             <div className="w-full h-full relative">
@@ -388,7 +378,9 @@ export default function GenerateImagePage() {
       </main>
       
       {/* Tools panel */}
-      <footer className="border-t border-white/10 pb-6">
+      {/* Tools panel - Only show when subscription card is NOT displayed */}
+      {!showSubscriptionCard && (
+      <footer className="border-t border-white/10 pb-6 relative">
         {/* Top tools row - removed background */}
         <div className="max-w-3xl mx-auto px-4 pt-4 pb-2 flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -451,24 +443,32 @@ export default function GenerateImagePage() {
           )}
         </div>
         
-        {/* Aspect ratio selector - only shown when toggled */}
+        {/* Aspect ratio selector - positioned absolutely */}
         {showAspectRatioSelector && (
           <AspectRatioSelector
             selectedRatio={selectedAspectRatio}
             onSelectRatio={handleAspectRatioChange}
-            className="my-2 border-t border-b border-white/5"
+            className="min-h-[100px] z-1000"
           />
         )}
         {/* Bottom tools row with text */}
         <div className="max-w-3xl mx-auto px-4 pt-2 border-t border-white/10">
           <div className="flex items-start overflow-x-auto space-x-6 py-2 no-scrollbar">
             {/* Generate Photo tool - removed border for selected tool */}
+            {/* Generate Photo tool with improved interaction */}
             <button 
               onClick={() => handleToolChange('generate')} 
-              // onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
-              className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'} focus:outline-none`}
+              className={`flex flex-col items-center min-w-[80px] pt-2 pb-1 
+                ${activeTool === 'generate' ? 'opacity-100' : 'opacity-70 hover:opacity-100'} 
+                focus:outline-none outline-none
+                active:transform active:scale-95 transition-all duration-150
+                relative overflow-hidden group touch-none tool-button`}
+              style={{ WebkitTapHighlightColor: 'transparent', outline: 'none' }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1">
+              {/* Touch/click ripple effect */}
+              <span className="absolute inset-0 bg-white/10 opacity-0 group-active:opacity-100 rounded-lg transform scale-0 group-active:scale-100 transition-all duration-300"></span>
+              
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mb-1 relative z-10">
                 {/* Большая центральная звезда */}
                 <path d="M12 3.5L14.416 8.39701L19.8541 9.22648L15.927 13.053L16.8926 18.4655L12 15.922L7.10736 18.4655L8.07301 13.053L4.14591 9.22648L9.58399 8.39701L12 3.5Z" 
                   fill={activeTool === 'generate' ? 'url(#gradient-star)' : '#F0F6F3'}
@@ -497,7 +497,10 @@ export default function GenerateImagePage() {
                   </linearGradient>
                 </defs>
               </svg>
-              <span className={`text-xs ${activeTool === 'generate' ? 'text-white' : 'text-white/70'}`}>Генерация<br/>фото</span>
+              
+              <span className={`text-xs ${activeTool === 'generate' ? 'text-white' : 'text-white/70'} relative z-10`}>
+                Генерация<br/>фото
+              </span>
             </button>
             
             {/* Enhance Photo tool - disabled */}
@@ -598,7 +601,8 @@ export default function GenerateImagePage() {
           </div>
         </div>
       </footer>
-      
+      )}
+     
       {/* CSS for gradient text and other styling */}
       <style jsx>{`
         /* Hide scrollbar for Chrome, Safari and Opera */
@@ -610,6 +614,17 @@ export default function GenerateImagePage() {
         .no-scrollbar {
           -ms-overflow-style: none;  /* IE and Edge */
           scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* Remove button borders in all states */
+        .tool-button,
+        .tool-button:active,
+        .tool-button:focus {
+          border: none !important;
+          outline: none !important;
+          outline-offset: 0 !important;
+          box-shadow: none !important;
+          -webkit-tap-highlight-color: transparent;
         }
       `}</style>
     </div>
