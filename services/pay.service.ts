@@ -31,6 +31,8 @@ export interface PaymentResponseModel {
 }
 
 export interface SubscriptionResponse {
+  id: SubscriptionResponse;
+  expired_at: SubscriptionResponse;
   is_subscribed: boolean;
   subscription_end: number;
   plan?: {
@@ -329,7 +331,6 @@ class PayService {
         },
         body: JSON.stringify({ 
           email, 
-          appId: this.appId,
           productId: 'test.test.app1' // Add default product ID
         }),
       });
@@ -344,8 +345,11 @@ class PayService {
       
       const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
       
-      // Check if subscription is active based on expired_at field
-      const isSubscribed = data.expired_at && data.expired_at > currentTime;
+      // Check if subscription has valid fields (both id and expired_at must exist)
+      const hasValidSubscriptionFields = data.id && data.expired_at;
+      
+      // Subscription is active if it has valid fields AND expiration date is in the future
+      const isSubscribed = hasValidSubscriptionFields && data.expired_at > currentTime;
       
       // Calculate days left if expired_at exists
       const daysLeft = data.expired_at 
@@ -354,13 +358,16 @@ class PayService {
       
       // Transform the response to match our SubscriptionResponse interface
       const subscriptionResponse: SubscriptionResponse = {
+        // Include id and expired_at in the response for frontend validation
+        id: data.id || null,
+        expired_at: data.expired_at || null,
         // Consider subscribed if there's a valid future expiration date
         is_subscribed: isSubscribed || data.active || data.is_subscribed || false,
         subscription_end: data.expired_at || data.expiryDate || data.subscription_end || 0,
         days_left: daysLeft || data.daysLeft || data.days_left || 0,
-        status: isSubscribed || data.success ? 'ok' : 'error',
+        status: hasValidSubscriptionFields ? 'ok' : 'error',
         message: data.message || '',
-        code: isSubscribed || data.success ? 200 : 400,
+        code: hasValidSubscriptionFields ? 200 : 400,
         plan: {
           name: 'Pro',
           features: []

@@ -189,23 +189,6 @@ class AIGenerationService {
   // Generate image according to API documentation
   async generateImage(params: GenerateImageParams, email: string, password: string): Promise<ApiResponse> {
     try {
-      // First check if user is subscribed
-      const user = authService.getCurrentUser();
-      if (user) {
-        const subscriptionStatus = await payService.checkSubscription(user.email);
-        
-        // If user is subscribed, ensure subscription is activated on the server
-        if (subscriptionStatus.is_subscribed) {
-          try {
-            console.log('User has PRO subscription, activating on server before image generation');
-            await this.activateUserSubscription(email);
-          } catch (subscriptionError) {
-            console.error('Failed to activate subscription, continuing with image generation:', subscriptionError);
-            // Continue with image generation even if subscription activation fails
-          }
-        }
-      }
-      
       // Create form data to match what the PHP backend expects
       const formData = new URLSearchParams();
       formData.append('em', email);

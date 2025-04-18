@@ -22,13 +22,16 @@ const planFeatures = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ email: string; userId?: number } | null>(null);
+  const [user, setUser] = useState<{ email: string; userId?: number; subscribed?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<PlanType>('free');
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [hasValidSubscription, setHasValidSubscription] = useState(false);
+  const [isActivelySubscribed, setIsActivelySubscribed] = useState(false);
+
   // Add ref for product section to enable scrolling
   const productSectionRef = useRef<HTMLElement>(null);
 
@@ -41,17 +44,44 @@ export default function ProfilePage() {
 
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
-    
+
     // Check subscription status
     const checkSubscriptionStatus = async () => {
       try {
         if (currentUser?.email) {
+          // Get user data including subscribed status
+          const userData = await fetch(`/api/user?email=${currentUser.email}`)
+            .then(res => res.json())
+            .catch(err => {
+              console.error("Error fetching user data:", err);
+              return null;
+            });
+
+          // Update user state with subscribed status - fix type error
+          if (userData) {
+            setUser(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                subscribed: !!userData.subscribed // Ensure boolean type
+              };
+            });
+            setIsActivelySubscribed(!!userData.subscribed);
+          }
+
+          // Check subscription with payment service
           const subscription = await payService.checkSubscription(currentUser.email);
           console.log('Subscription status:', subscription); // Debug log
-          
-          // Update current plan based on subscription status
-          // Using is_subscribed property to determine PRO status
-          if (subscription && subscription.is_subscribed) {
+
+          // Check if subscription has valid fields
+          const hasValidFields = subscription &&
+            subscription.expired_at &&
+            subscription.id;
+
+          setHasValidSubscription(!!hasValidFields);
+
+          // Update current plan based on subscription validity
+          if (hasValidFields) {
             setCurrentPlan('pro');
             console.log('PRO access detected'); // Debug log
           } else {
@@ -63,32 +93,33 @@ export default function ProfilePage() {
         console.error('Error checking subscription:', error);
         // Default to free plan on error
         setCurrentPlan('free');
+        setHasValidSubscription(false);
       } finally {
         setLoading(false);
       }
     };
 
     checkSubscriptionStatus();
-    
+
     // Fetch available products
     const fetchProducts = async () => {
       try {
         setLoadingProducts(true);
         const availableProducts = await payService.getProducts();
         setProducts(availableProducts);
-        
+
         // Set the first product as selected by default if available
         if (availableProducts.length > 0) {
           setSelectedOption(availableProducts[0].product_id);
         }
-        
+
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
         setLoadingProducts(false);
       }
     };
-    
+
     fetchProducts();
   }, [router]);
 
@@ -116,10 +147,34 @@ export default function ProfilePage() {
     }
   };
 
+  // Add function to handle subscription cancellation
+  const handleCancelSubscription = async () => {
+    if (!user?.email) return;
+
+    // Ask for confirmation
+    const confirmed = window.confirm("Вы уверены, что хотите отменить PRO подписку? Вы потеряете доступ ко всем премиум-функциям.");
+
+    if (!confirmed) return;
+
+    try {
+      setCancellingSubscription(true);
+      await payService.cancelSubscription(user.email);
+      alert("Подписка успешно отменена");
+      setIsActivelySubscribed(false);
+      setUser(prev => prev ? { ...prev, subscribed: false } : prev);
+      // Don't change currentPlan here as the user might still have valid subscription time
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      alert("Не удалось отменить подписку. Пожалуйста, попробуйте позже.");
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
   // Scroll to product section
   const scrollToProducts = () => {
     if (productSectionRef.current) {
-      productSectionRef.current.scrollIntoView({ 
+      productSectionRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       });
@@ -139,24 +194,24 @@ export default function ProfilePage() {
       {/* Header */}
       <header className="p-4 md:p-6 flex justify-between items-center border-b border-white/10">
         <div className="flex items-center">
-          <button 
-            onClick={() => router.back()} 
+          <button
+            onClick={() => router.back()}
             className="flex items-center justify-center hover:opacity-80 transition-opacity"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M16.1252 20.9999C15.9332 20.9999 15.7412 20.9264 15.5949 20.7802L7.34494 12.5302C7.05169 12.2369 7.05169 11.7629 7.34494 11.4697L15.5949 3.21969C15.8882 2.92644 16.3622 2.92644 16.6554 3.21969C16.9487 3.51294 16.9487 3.98694 16.6554 4.28019L8.93569 11.9999L16.6554 19.7197C16.9487 20.0129 16.9487 20.4869 16.6554 20.7802C16.5092 20.9264 16.3172 20.9999 16.1252 20.9999Z" fill="#F0F6F3"/>
+              <path d="M16.1252 20.9999C15.9332 20.9999 15.7412 20.9264 15.5949 20.7802L7.34494 12.5302C7.05169 12.2369 7.05169 11.7629 7.34494 11.4697L15.5949 3.21969C15.8882 2.92644 16.3622 2.92644 16.6554 3.21969C16.9487 3.51294 16.9487 3.98694 16.6554 4.28019L8.93569 11.9999L16.6554 19.7197C16.9487 20.0129 16.9487 20.4869 16.6554 20.7802C16.5092 20.9264 16.3172 20.9999 16.1252 20.9999Z" fill="#F0F6F3" />
             </svg>
           </button>
         </div>
-        
+
         <div className="flex items-center">
-          <button 
-            onClick={() => router.push('/history')} 
+          <button
+            onClick={() => router.push('/history')}
             className="flex items-center justify-center hover:opacity-80 transition-opacity"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12.0003 2.89789V2.39252C12.0003 2.2291 11.8149 2.13466 11.6827 2.23071L9.21912 4.02058C9.10919 4.10044 9.10919 4.26432 9.21912 4.34419L11.6827 6.13402C11.8149 6.23007 12.0003 6.13563 12.0003 5.97221V5.46684C15.8502 5.46684 18.9824 8.59899 18.9824 12.4489C18.9824 16.2989 15.8502 19.4311 12.0003 19.4311C8.28456 19.4311 5.23747 16.5135 5.02949 12.849C5.01697 12.6284 4.83908 12.4489 4.61816 12.4489H2.84922C2.6283 12.4489 2.44836 12.6286 2.45746 12.8493C2.6673 17.9385 6.8595 22 12.0003 22C17.2752 22 21.5513 17.7239 21.5513 12.4489C21.5513 7.17406 17.2752 2.89789 12.0003 2.89789Z" fill="#F0F6F3"/>
-              <path d="M15.7485 12.449C15.7485 10.3821 14.067 8.70068 12.0002 8.70068C9.9334 8.70068 8.25195 10.3822 8.25195 12.449C8.25195 14.5158 9.93344 16.1972 12.0002 16.1972C14.067 16.1972 15.7485 14.5158 15.7485 12.449ZM11.4143 10.8954H12.5861V12.4906L13.4375 13.1726L12.705 14.0872L11.4143 13.0535V10.8954Z" fill="#F0F6F3"/>
+              <path d="M12.0003 2.89789V2.39252C12.0003 2.2291 11.8149 2.13466 11.6827 2.23071L9.21912 4.02058C9.10919 4.10044 9.10919 4.26432 9.21912 4.34419L11.6827 6.13402C11.8149 6.23007 12.0003 6.13563 12.0003 5.97221V5.46684C15.8502 5.46684 18.9824 8.59899 18.9824 12.4489C18.9824 16.2989 15.8502 19.4311 12.0003 19.4311C8.28456 19.4311 5.23747 16.5135 5.02949 12.849C5.01697 12.6284 4.83908 12.4489 4.61816 12.4489H2.84922C2.6283 12.4489 2.44836 12.6286 2.45746 12.8493C2.6673 17.9385 6.8595 22 12.0003 22C17.2752 22 21.5513 17.7239 21.5513 12.4489C21.5513 7.17406 17.2752 2.89789 12.0003 2.89789Z" fill="#F0F6F3" />
+              <path d="M15.7485 12.449C15.7485 10.3821 14.067 8.70068 12.0002 8.70068C9.9334 8.70068 8.25195 10.3822 8.25195 12.449C8.25195 14.5158 9.93344 16.1972 12.0002 16.1972C14.067 16.1972 15.7485 14.5158 15.7485 12.449ZM11.4143 10.8954H12.5861V12.4906L13.4375 13.1726L12.705 14.0872L11.4143 13.0535V10.8954Z" fill="#F0F6F3" />
             </svg>
           </button>
         </div>
@@ -173,26 +228,25 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <div className="flex-shrink-0">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.49664 2 2 6.47427 2 12C2 17.5034 6.47427 22 12 22C17.5257 22 22 17.5034 22 12C22 6.49664 17.5034 2 12 2ZM12 7.12304C13.7002 7.12304 15.1096 8.51007 15.1096 10.2327C15.1096 11.9329 13.7226 13.3423 12 13.3423C10.2774 13.3423 8.89038 11.9329 8.89038 10.2103C8.89038 8.51007 10.2998 7.12304 12 7.12304ZM12 19.9418C10.0984 19.9418 8.35347 19.2707 6.98881 18.1521C8.42058 16.5861 10.1655 15.7136 12 15.7136C13.8345 15.7136 15.6018 16.5638 17.0112 18.1521C15.6465 19.2707 13.9016 19.9418 12 19.9418Z" fill="#F0F6F3"/>
+                <path d="M12 2C6.49664 2 2 6.47427 2 12C2 17.5034 6.47427 22 12 22C17.5257 22 22 17.5034 22 12C22 6.49664 17.5034 2 12 2ZM12 7.12304C13.7002 7.12304 15.1096 8.51007 15.1096 10.2327C15.1096 11.9329 13.7226 13.3423 12 13.3423C10.2774 13.3423 8.89038 11.9329 8.89038 10.2103C8.89038 8.51007 10.2998 7.12304 12 7.12304ZM12 19.9418C10.0984 19.9418 8.35347 19.2707 6.98881 18.1521C8.42058 16.5861 10.1655 15.7136 12 15.7136C13.8345 15.7136 15.6018 16.5638 17.0112 18.1521C15.6465 19.2707 13.9016 19.9418 12 19.9418Z" fill="#F0F6F3" />
               </svg>
             </div>
-            
             <div>
               <p className="font-medium">{user.email}</p>
               <p className="text-xs text-white/50">Вход через email</p>
             </div>
           </div>
-          
+
           <div className="h-px bg-white/10 my-4 sm:my-5"></div>
-          
+
           <div className="flex justify-center gap-6">
-            <button 
+            <button
               onClick={handleChangePassword}
               className="px-4 py-2 bg-[#252525] text-white/90 rounded-lg hover:bg-[#303030] transition-colors text-sm"
             >
               Изменить пароль
             </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="px-4 py-2 bg-transparent border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors text-sm"
             >
@@ -208,11 +262,11 @@ export default function ProfilePage() {
           <div className="bg-[#151515] rounded-[10px] p-4 sm:p-6 relative overflow-hidden">
             {/* Background gradient effect */}
             <div className={`absolute inset-0 opacity-10 ${
-              currentPlan === 'pro' 
-                ? 'bg-gradient-to-br from-[#58E877]/20 to-[#FFFBA1]/20' 
+              currentPlan === 'pro'
+                ? 'bg-gradient-to-br from-[#58E877]/20 to-[#FFFBA1]/20'
                 : ''
             }`}></div>
-            
+
             <div className="flex items-center justify-between gap-4 sm:gap-5 relative z-10">
               <div className="flex items-start gap-3 sm:gap-5">
                 {/* Diamond icon */}
@@ -225,17 +279,16 @@ export default function ProfilePage() {
                     <path d="M10.7644 0.497559L11.4243 1.12291L12.0838 1.74823L14.7669 4.29125L15.8983 1.74823L16.1764 1.12291L16.4545 0.497559H10.7644ZM9.92647 1.42773L10.2658 1.74914L13.1632 4.49474H6.74939L9.59338 1.74914L9.92647 1.42773ZM17.082 2.16535L17.378 1.5L19.4895 4.49446H18.7241H17.9591H16.046L16.786 2.83071L17.082 2.16535ZM5.91187 5.74512L9.8652 14.6323L10.0165 14.9712L10.097 14.7903L14.1208 5.74512H5.91187ZM18.3108 5.74512H19.1554H20L11.1583 15.4819L11.9696 13.658L12.7804 11.8354L15.4893 5.74512H18.3108ZM2.90503 2.06305L3.20437 2.73551L3.98683 4.49474H2.00913H1.25292H0.496704L2.60613 1.39062L2.90503 2.06305ZM3.57812 0.497559L3.85617 1.12291L4.13422 1.74823L5.23356 4.2191L7.79283 1.74823L8.44068 1.12291L9.08811 0.497559H3.57812ZM7.21171 11.7445L8.00921 13.5363L8.80585 15.3277L0 5.74512H0.849613H1.6988H4.54322L7.21171 11.7445Z" fill={currentPlan === 'pro' ? "#FFFBA1" : "#F0F6F3"} />
                   </svg>
                 </div>
-                
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center mb-2">
                     <h3 className={`text-lg sm:text-xl font-bold ${
-                      currentPlan === 'pro' 
-                        ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]' 
+                      currentPlan === 'pro'
+                        ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]'
                         : 'text-white'
                     }`}>
                       {currentPlan === 'free' ? 'Бесплатный план' : 'PRO план'}
                     </h3>
-                    
+
                     {currentPlan === 'pro' && (
                       <div className="ml-3 px-3 py-1 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black text-xs font-bold rounded-full">
                         Активен
@@ -243,17 +296,16 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <p className="text-xs sm:text-sm text-white/50">
-                    {currentPlan === 'free' 
-                      ? '10 сохранений в день' 
+                    {currentPlan === 'free'
+                      ? '10 сохранений в день'
                       : 'Безлимитные сохранения'}
                   </p>
                 </div>
               </div>
-              
-              {/* Change button only shown for free plan */}
-              {currentPlan === 'free' && (
+
+              {currentPlan === 'free' ? (
                 <div className="flex-shrink-0">
-                  <button 
+                  <button
                     onClick={scrollToProducts}
                     className="px-4 py-1.5 sm:py-1 bg-transparent text-sm font-bold hover:opacity-80 transition-opacity"
                   >
@@ -262,15 +314,25 @@ export default function ProfilePage() {
                     </span>
                   </button>
                 </div>
+              ) : (
+                <div className="flex-shrink-0">
+                  {isActivelySubscribed && (
+                    <button
+                      onClick={handleCancelSubscription}
+                      disabled={cancellingSubscription}
+                      className="px-4 py-1.5 sm:py-1 text-sm font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {cancellingSubscription ? "Отмена..." : "Отменить подписку"}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
         </section>
-        
+
         {/* Plan comparison table - Now separated as its own section */}
         <section className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
-          {/* <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Сравнение планов</h2> */}
-          
           <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
             <table className="w-full border-collapse">
               <thead>
@@ -423,6 +485,7 @@ export default function ProfilePage() {
             </table>
           </div>
         </section>
+
         {/* Purchase options - add ref here */}
         {currentPlan === 'free' && (
           <section ref={productSectionRef} className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
@@ -438,11 +501,11 @@ export default function ProfilePage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {products.map((product) => (
-                  <div 
+                  <div
                     key={product.id}
                     className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-all ${
-                      selectedOption === product.product_id 
-                        ? 'border-[#58E877] bg-[#58E877]/5' 
+                      selectedOption === product.product_id
+                        ? 'border-[#58E877] bg-[#58E877]/5'
                         : 'border-white/10 hover:border-white/20'
                     }`}
                     onClick={() => setSelectedOption(product.product_id)}
@@ -470,8 +533,8 @@ export default function ProfilePage() {
                 ))}
               </div>
             )}
-            
-            <button 
+
+            <button
               onClick={handleActivatePro}
               disabled={loadingProducts || products.length === 0 || !selectedOption}
               className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -484,26 +547,25 @@ export default function ProfilePage() {
         <div className="text-white/60 mb-2 text-sm font-light">Правовые документы</div>
         {/* Legal documents */}
         <section className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
-          {/* <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Правовые документы</h2> */}
           <div className="flex flex-col gap-3">
             <Link href="/legal/privacy" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Политика конфиденциальности
             </Link>
             <Link href="/legal/terms" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Условия использования
             </Link>
             <Link href="/legal/offer" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Договор оферты
             </Link>
@@ -513,27 +575,25 @@ export default function ProfilePage() {
         <div className="text-white/60 mb-2 text-sm font-light">Поддержка</div>
         {/* Support section */}
         <section className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
-          {/* <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3">Поддержка</h2> */}
           <p className="text-white/70 mb-4 whitespace-pre-line text-sm sm:text-base">
             У вас возникли проблемы?
             Наша служба поддержки готова помочь вам.
             Нажмите на кнопку ниже чтобы связаться с нами
           </p>
-          <Link 
+          <Link
             href="/support"
             className="inline-block px-4 sm:px-5 py-2 sm:py-2.5 bg-[#252525] rounded-lg text-white/90 text-sm sm:text-base hover:bg-[#303030] transition-colors"
           >
             Email поддержка
           </Link>
         </section>
-
         {/* Delete account */}
         <section className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4">
           <h2 className="text-lg sm:text-xl font-semibold text-red-500 mb-2 sm:mb-3">Опасная зона</h2>
           <p className="text-white/70 mb-4 text-sm sm:text-base">
             Удаление аккаунта приведет к безвозвратной потере всех ваших данных и истории генераций. Это действие нельзя отменить.
           </p>
-          <button 
+          <button
             onClick={handleDeleteAccount}
             className="px-4 sm:px-5 py-2 sm:py-2.5 bg-red-900/30 border border-red-900/50 rounded-lg text-red-200 text-sm sm:text-base hover:bg-red-900/50 transition-colors"
           >
