@@ -602,6 +602,19 @@ export class AuthService {
     return false;
   }
 
+  public refreshUserData() 
+  {
+
+    const user = this.getCurrentUser();
+    if (user) {
+
+
+      console.log('User data refreshed:', user);
+    } else {
+      console.log('No user data available to refresh.');
+    }
+  }
+
   // For debugging
   getDebugInfo() {
     return {

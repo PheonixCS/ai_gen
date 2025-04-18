@@ -327,7 +327,11 @@ class PayService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, appId: this.appId }),
+        body: JSON.stringify({ 
+          email, 
+          appId: this.appId,
+          productId: 'test.test.app1' // Add default product ID
+        }),
       });
       
       if (!response.ok) {
@@ -336,20 +340,34 @@ class PayService {
       }
       
       const data = await response.json();
+      console.log('Raw subscription data:', data); // Debug log
+      
+      const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+      
+      // Check if subscription is active based on expired_at field
+      const isSubscribed = data.expired_at && data.expired_at > currentTime;
+      
+      // Calculate days left if expired_at exists
+      const daysLeft = data.expired_at 
+        ? Math.floor((data.expired_at - currentTime) / (60 * 60 * 24))
+        : 0;
       
       // Transform the response to match our SubscriptionResponse interface
       const subscriptionResponse: SubscriptionResponse = {
-        is_subscribed: data.active || false,
-        subscription_end: data.expiryDate || 0,
-        days_left: data.daysLeft || 0,
-        status: data.success ? 'ok' : 'error',
+        // Consider subscribed if there's a valid future expiration date
+        is_subscribed: isSubscribed || data.active || data.is_subscribed || false,
+        subscription_end: data.expired_at || data.expiryDate || data.subscription_end || 0,
+        days_left: daysLeft || data.daysLeft || data.days_left || 0,
+        status: isSubscribed || data.success ? 'ok' : 'error',
         message: data.message || '',
-        code: data.success ? 200 : 400,
-        plan: data.plan ? {
-          name: data.plan.name || 'Unknown',
-          features: data.plan.features || []
-        } : undefined
+        code: isSubscribed || data.success ? 200 : 400,
+        plan: {
+          name: 'Pro',
+          features: []
+        }
       };
+      
+      console.log('Processed subscription data:', subscriptionResponse); // Additional debug log
       
       return subscriptionResponse;
     } catch (error) {

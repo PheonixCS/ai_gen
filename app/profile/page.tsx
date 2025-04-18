@@ -1,7 +1,8 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import authService from '@/services/auth.service';
+import payService, { Product } from '@/services/pay.service';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -24,7 +25,12 @@ export default function ProfilePage() {
   const [user, setUser] = useState<{ email: string; userId?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<PlanType>('free');
-  const [selectedOption, setSelectedOption] = useState<PurchaseOption>('3days');
+  const [selectedOption, setSelectedOption] = useState<string>('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  
+  // Add ref for product section to enable scrolling
+  const productSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -35,7 +41,55 @@ export default function ProfilePage() {
 
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
-    setLoading(false);
+    
+    // Check subscription status
+    const checkSubscriptionStatus = async () => {
+      try {
+        if (currentUser?.email) {
+          const subscription = await payService.checkSubscription(currentUser.email);
+          console.log('Subscription status:', subscription); // Debug log
+          
+          // Update current plan based on subscription status
+          // Using is_subscribed property to determine PRO status
+          if (subscription && subscription.is_subscribed) {
+            setCurrentPlan('pro');
+            console.log('PRO access detected'); // Debug log
+          } else {
+            setCurrentPlan('free');
+            console.log('Free access detected'); // Debug log
+          }
+        }
+      } catch (error) {
+        console.error('Error checking subscription:', error);
+        // Default to free plan on error
+        setCurrentPlan('free');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSubscriptionStatus();
+    
+    // Fetch available products
+    const fetchProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const availableProducts = await payService.getProducts();
+        setProducts(availableProducts);
+        
+        // Set the first product as selected by default if available
+        if (availableProducts.length > 0) {
+          setSelectedOption(availableProducts[0].product_id);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    
+    fetchProducts();
   }, [router]);
 
   const handleLogout = () => {
@@ -55,8 +109,21 @@ export default function ProfilePage() {
   };
 
   const handleActivatePro = () => {
-    alert(`Активация PRO плана на ${selectedOption === '3days' ? '3 дня' : '7 дней'}`);
-    // Здесь будет переход на страницу оплаты
+    if (selectedOption) {
+      router.push(`/payment?productId=${selectedOption}`);
+    } else {
+      alert('Пожалуйста, выберите план подписки');
+    }
+  };
+
+  // Scroll to product section
+  const scrollToProducts = () => {
+    if (productSectionRef.current) {
+      productSectionRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
   };
 
   if (loading) {
@@ -155,7 +222,7 @@ export default function ProfilePage() {
                     : 'bg-white/5'
                 }`}>
                   <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M10.7644 0.497559L11.4243 1.12291L12.0838 1.74823L14.7669 4.29125L15.8983 1.74823L16.1764 1.12291L16.4545 0.497559H10.7644ZM9.92647 1.42773L10.2658 1.74914L13.1632 4.49474H6.74939L9.59338 1.74914L9.92647 1.42773ZM17.082 2.16535L17.378 1.5L19.4895 4.49446H18.7241H17.9591H16.046L16.786 2.83071L17.082 2.16535ZM5.91187 5.74512L9.8652 14.6323L10.0165 14.9712L10.097 14.7903L14.1208 5.74512H5.91187ZM18.3108 5.74512H19.1554H20L11.1583 15.4819L11.9696 13.658L12.7804 11.8354L15.4893 5.74512H18.3108ZM2.90503 2.06305L3.20437 2.73551L3.98683 4.49474H2.00913H1.25292H0.496704L2.60613 1.39062L2.90503 2.06305ZM3.57812 0.497559L3.85617 1.12291L4.13422 1.74823L5.23356 4.2191L7.79283 1.74823L8.44068 1.12291L9.08811 0.497559H3.57812ZM7.21171 11.7445L8.00921 13.5363L8.80585 15.3277L0 5.74512H0.849613H1.6988H4.54322L7.21171 11.7445Z" fill={currentPlan === 'pro' ? "#FFFBA1" : "#F0F6F3"} />
+                    <path d="M10.7644 0.497559L11.4243 1.12291L12.0838 1.74823L14.7669 4.29125L15.8983 1.74823L16.1764 1.12291L16.4545 0.497559H10.7644ZM9.92647 1.42773L10.2658 1.74914L13.1632 4.49474H6.74939L9.59338 1.74914L9.92647 1.42773ZM17.082 2.16535L17.378 1.5L19.4895 4.49446H18.7241H17.9591H16.046L16.786 2.83071L17.082 2.16535ZM5.91187 5.74512L9.8652 14.6323L10.0165 14.9712L10.097 14.7903L14.1208 5.74512H5.91187ZM18.3108 5.74512H19.1554H20L11.1583 15.4819L11.9696 13.658L12.7804 11.8354L15.4893 5.74512H18.3108ZM2.90503 2.06305L3.20437 2.73551L3.98683 4.49474H2.00913H1.25292H0.496704L2.60613 1.39062L2.90503 2.06305ZM3.57812 0.497559L3.85617 1.12291L4.13422 1.74823L5.23356 4.2191L7.79283 1.74823L8.44068 1.12291L9.08811 0.497559H3.57812ZM7.21171 11.7445L8.00921 13.5363L8.80585 15.3277L0 5.74512H0.849613H1.6988H4.54322L7.21171 11.7445Z" fill={currentPlan === 'pro' ? "#FFFBA1" : "#F0F6F3"} />
                   </svg>
                 </div>
                 
@@ -183,21 +250,22 @@ export default function ProfilePage() {
                 </div>
               </div>
               
-              {/* Change button always visible with gradient text */}
-              <div className="flex-shrink-0">
-                <button 
-                  onClick={() => router.push('/pricing')}
-                  className="px-4 py-1.5 sm:py-1 bg-transparent text-sm font-bold hover:opacity-80 transition-opacity"
-                >
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]">
-                    Сменить
-                  </span>
-                </button>
-              </div>
+              {/* Change button only shown for free plan */}
+              {currentPlan === 'free' && (
+                <div className="flex-shrink-0">
+                  <button 
+                    onClick={scrollToProducts}
+                    className="px-4 py-1.5 sm:py-1 bg-transparent text-sm font-bold hover:opacity-80 transition-opacity"
+                  >
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]">
+                      Сменить
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>
-          
         
         {/* Plan comparison table - Now separated as its own section */}
         <section className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
@@ -355,55 +423,58 @@ export default function ProfilePage() {
             </table>
           </div>
         </section>
-        {/* Purchase options */}
+        {/* Purchase options - add ref here */}
         {currentPlan === 'free' && (
-          <section className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
+          <section ref={productSectionRef} className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Получить PRO доступ</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-              {/* 3 days option */}
-              <div 
-                className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-all ${
-                  selectedOption === '3days' 
-                    ? 'border-[#58E877] bg-[#58E877]/5' 
-                    : 'border-white/10 hover:border-white/20'
-                }`}
-                onClick={() => setSelectedOption('3days')}
-              >
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="font-medium text-sm sm:text-base">PRO на 3 дня</h3>
-                  <div className="flex items-center">
-                    <span className="text-white/50 text-xs sm:text-sm line-through mr-2">390₽</span>
-                    <span className="text-base sm:text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]">1₽</span>
-                  </div>
-                </div>
-                <p className="text-white/70 text-xs sm:text-sm">Пробный период с полным доступом ко всем функциям</p>
-                <div className="mt-1 sm:mt-2 text-xs text-white/50">Единоразовый платеж</div>
+            {loadingProducts ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
               </div>
-              
-              {/* 7 days option */}
-              <div 
-                className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-all ${
-                  selectedOption === '7days' 
-                    ? 'border-[#58E877] bg-[#58E877]/5' 
-                    : 'border-white/10 hover:border-white/20'
-                }`}
-                onClick={() => setSelectedOption('7days')}
-              >
-                <div className="flex justify-between items-center mb-2 sm:mb-3">
-                  <h3 className="font-medium text-sm sm:text-base">PRO на 7 дней</h3>
-                  <div className="flex items-center">
-                    <span className="text-white/50 text-xs sm:text-sm line-through mr-2">1690₽</span>
-                    <span className="text-base sm:text-lg font-bold">890₽</span>
-                  </div>
-                </div>
-                <p className="text-white/70 text-xs sm:text-sm">Неделя без ограничений со всеми PRO возможностями</p>
-                <div className="mt-1 sm:mt-2 text-xs text-white/50">Единоразовый платеж</div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-4 text-white/60">
+                Не удалось загрузить доступные тарифы. Пожалуйста, попробуйте позже.
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                {products.map((product) => (
+                  <div 
+                    key={product.id}
+                    className={`border rounded-lg p-3 sm:p-4 cursor-pointer transition-all ${
+                      selectedOption === product.product_id 
+                        ? 'border-[#58E877] bg-[#58E877]/5' 
+                        : 'border-white/10 hover:border-white/20'
+                    }`}
+                    onClick={() => setSelectedOption(product.product_id)}
+                  >
+                    <div className="flex justify-between items-center mb-2 sm:mb-3">
+                      <h3 className="font-medium text-sm sm:text-base">
+                        PRO на {product.period} {product.internal === 'day' ? 'дней' : product.internal === 'week' ? 'недель' : 'месяцев'}
+                      </h3>
+                      <div className="flex items-center">
+                        {product.has_trial && (
+                          <span className="text-white/50 text-xs sm:text-sm line-through mr-2">
+                            {product.amount}₽
+                          </span>
+                        )}
+                        <span className={`text-base sm:text-lg font-bold ${product.has_trial ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1]' : ''}`}>
+                          {product.has_trial ? '1₽' : `${product.amount}₽`}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-white/70 text-xs sm:text-sm">
+                      {product.description || (product.has_trial ? 'Пробный период с полным доступом ко всем функциям' : 'Полный доступ ко всем PRO возможностям')}
+                    </p>
+                    <div className="mt-1 sm:mt-2 text-xs text-white/50">Единоразовый платеж</div>
+                  </div>
+                ))}
+              </div>
+            )}
             
             <button 
               onClick={handleActivatePro}
-              className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              disabled={loadingProducts || products.length === 0 || !selectedOption}
+              className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Активировать PRO доступ
             </button>

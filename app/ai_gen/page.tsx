@@ -276,7 +276,7 @@ export default function GenerateImagePage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
         {/* Prompt input area - removed visual styling */}
         {!showSubscriptionCard && (
-        <div className="mb-6">
+        <div className="mb-6 mt-4 ml-2 mr-2">
           <textarea
             ref={promptTextareaRef}
             value={prompt}

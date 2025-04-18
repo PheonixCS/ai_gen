@@ -11,7 +11,7 @@ import {
 
 import apiClient from './api-client';
 import authService from './auth.service';
-
+import payService from './pay.service';
 export interface GenerateImageParams {
   prompt: string;
   style_preset?: string;
@@ -151,9 +151,61 @@ export interface ApiSuccessResponse {
 export type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
 
 class AIGenerationService {
+  // Function to activate user's subscription
+  async activateUserSubscription(userEmail: string): Promise<SubscriptionResponse> {
+      if (!userEmail) {
+        throw new Error('User email not found');
+      }
+      
+      // Get current authentication token
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+      
+      console.log('Activating subscription for user:', userEmail);
+      
+      const response = await fetch('/api/subscribe/manage.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'activate',
+          token: token
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.msg || 'Failed to activate subscription');
+      }
+      
+      const result = await response.json();
+      console.log('Subscription activation result:', result);
+      
+      return result;
+  };
   // Generate image according to API documentation
   async generateImage(params: GenerateImageParams, email: string, password: string): Promise<ApiResponse> {
     try {
+      // First check if user is subscribed
+      const user = authService.getCurrentUser();
+      if (user) {
+        const subscriptionStatus = await payService.checkSubscription(user.email);
+        
+        // If user is subscribed, ensure subscription is activated on the server
+        if (subscriptionStatus.is_subscribed) {
+          try {
+            console.log('User has PRO subscription, activating on server before image generation');
+            await this.activateUserSubscription(email);
+          } catch (subscriptionError) {
+            console.error('Failed to activate subscription, continuing with image generation:', subscriptionError);
+            // Continue with image generation even if subscription activation fails
+          }
+        }
+      }
+      
       // Create form data to match what the PHP backend expects
       const formData = new URLSearchParams();
       formData.append('em', email);

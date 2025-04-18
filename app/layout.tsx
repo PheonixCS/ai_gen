@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru">
+    <html lang="ru" className="dark">
       <head>
         {/* Add these scripts to properly load CloudPayments */}
         <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
