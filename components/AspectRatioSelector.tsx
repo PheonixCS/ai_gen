@@ -23,7 +23,7 @@ const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   ];
 
   return (
-    <div className={`absolute left-0 right-0 bottom-[22px] bg-[#0F0F0F] border-t border-b border-white/10 py-3 z-10 ${className}`}>
+    <div className={`absolute left-0 right-0 top-[45px] bg-[#0F0F0F] border-t border-b border-white/10 py-3 z-10 ${className}`}>
       <div className="max-w-3xl mx-auto px-4">
         <div className="flex justify-center space-x-4">
           {aspectRatios.map((item) => (

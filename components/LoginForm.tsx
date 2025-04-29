@@ -72,10 +72,9 @@ export default function LoginForm() {
     }
   };
 
+  // Now this form is only for email login, so it's more compact
   return (
-    <div className="flex flex-col gap-4">
-      <div className="text-white/72 text-center mb-2 md:text-lg">Вход по Email</div>
-      
+    <div className="flex flex-col gap-4">      
       {error && (
         <div className="bg-red-900/20 border border-red-800/50 text-red-200 px-4 py-2 rounded-lg text-sm">
           {error}
@@ -126,12 +125,6 @@ export default function LoginForm() {
           Зарегистрироваться
         </Link>
       </div>
-      
-      {/* <div className="flex items-center justify-center mt-6">
-        <Link href="/" className="text-white/50 text-sm hover:text-white/80 transition-colors">
-          Вернуться на главную страницу
-        </Link>
-      </div> */}
     </div>
   );
 }

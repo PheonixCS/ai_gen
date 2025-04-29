@@ -22,7 +22,7 @@ const toolCards: ToolCard[] = [
     title: 'Генерация изображений',
     description: 'Создавайте уникальные изображения на основе текстового описания',
     icon: '/icons/generate.svg',
-    bgImage: '/32cbb5505093c8cbe349effadeff5b8c1be824a3.png'
+    bgImage: '/32cbb5505093c8cbe349effadeff5b8c1be824a3.jpg'
   },
   {
     id: 'enhance',
@@ -134,7 +134,7 @@ export default function HomePage() {
       {/* Header */}
       <header className="p-4 md:p-6 flex justify-between items-center border-b border-white/10">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold">AI Photo Gen</h1>
+          <h1 className="text-xl font-bold">IMAGENI</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -241,7 +241,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="mt-12 py-4 border-t border-white/10 text-center text-white/50 text-sm">
-        <p>© 2025 AI Photo Gen. Все права защищены.</p>
+        <p>© 2025 IMAGENI. Все права защищены.</p>
       </footer>
     </div>
   );

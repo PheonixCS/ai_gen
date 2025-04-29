@@ -12,10 +12,19 @@ export default function PaymentClient() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [is3DSReturn, setIs3DSReturn] = useState(false);
 
-  // Extract product ID from URL
+  // Extract product ID and check for 3DS return parameters
   useEffect(() => {
-    const productIdParam = searchParams.get('productId');
+    const productIdParam = searchParams?.get('productId');
+    const paRes = searchParams?.get('PaRes');
+    const md = searchParams?.get('MD');
+    
+    // Check if this is a return from 3DS authentication
+    if (paRes && md) {
+      setIs3DSReturn(true);
+    }
+    
     if (productIdParam) {
       setProductId(productIdParam);
     }
@@ -37,12 +46,22 @@ export default function PaymentClient() {
       
       try {
         setLoading(true);
+        console.log("Fetching product with ID:", productId);
         const products = await payService.getProducts();
-        const foundProduct = products.find(p => p.product_id === productId);
+        console.log("Available products:", products);
+        
+        // Look for a product with matching id OR product_id
+        const foundProduct = products.find(p => 
+          p.id.toString() === productId || // Match by numeric ID (as string)
+          p.product_id === productId       // Match by product_id string
+        );
         
         if (foundProduct) {
+          console.log("Found product:", foundProduct);
           setProduct(foundProduct);
         } else {
+          console.error("Product not found. Looking for ID:", productId);
+          console.error("Available products:", products.map(p => ({ id: p.id, product_id: p.product_id })));
           setError('Запрошенный тариф не найден');
         }
       } catch (err) {
@@ -56,11 +75,59 @@ export default function PaymentClient() {
     fetchProductDetails();
   }, [productId]);
 
+  // Function to activate user's subscription
+  const activateUserSubscription = async () => {
+    // Get current user email
+    const currentUser = authService.getCurrentUser();
+    if (!currentUser?.email) {
+      throw new Error('User email not found');
+    }
+    
+    // Get current authentication token
+    const token = authService.getToken();
+    if (!token) {
+      throw new Error('Authentication token not found');
+    }
+    
+    console.log('Activating subscription for user:', currentUser.email);
+    
+    const response = await fetch('/api/subscribe/manage.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: 'activate',
+        token: token
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.msg || 'Failed to activate subscription');
+    }
+    
+    const result = await response.json();
+    console.log('Subscription activation result:', result);
+    
+    return result;
+  };
+
   // Handle payment success
-  const handlePaymentSuccess = () => {
-    // Refresh user subscription status and redirect
-    authService.refreshUserData();
-    router.push('/profile');
+  const handlePaymentSuccess = async () => {
+    try {
+      setLoading(true);
+      // Activate the subscription
+      await activateUserSubscription();
+      // Refresh user subscription status
+      authService.refreshUserData();
+      // Redirect to profile page
+      router.push('/profile');
+    } catch (err) {
+      console.error('Failed to activate subscription:', err);
+      setError('Payment successful, but failed to activate subscription. Please contact support.');
+      setLoading(false);
+    }
   };
 
   // Handle payment error

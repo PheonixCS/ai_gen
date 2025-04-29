@@ -6,6 +6,7 @@ import { AuthService } from '@/services/auth.service';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import ShareIcon from '@mui/icons-material/Share';
 import Image from 'next/image';
+import Share from '@/components/Share';
 
 interface ImageHistoryItem {
   prompt: string;
@@ -25,6 +26,8 @@ export default function HistoryPage() {
   const [images, setImages] = useState<ImageHistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<ImageHistoryItem | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
     const fetchImageHistory = async () => {
@@ -68,7 +71,8 @@ export default function HistoryPage() {
     setSelectedImage(null);
   };
 
-  const handleDownload = (image: ImageHistoryItem) => {
+  const handleDownload = (image: ImageHistoryItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const link = document.createElement('a');
     link.href = image.file_path;
     link.download = image.filename;
@@ -77,10 +81,11 @@ export default function HistoryPage() {
     document.body.removeChild(link);
   };
 
-  const handleShare = (image: ImageHistoryItem) => {
-    navigator.clipboard.writeText(image.file_path)
-      .then(() => alert('Image URL copied to clipboard!'))
-      .catch(() => alert('Failed to copy URL'));
+  const handleShare = (image: ImageHistoryItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const imageUrl = 'https://imageni.org' + image.file_path;
+    setShareUrl(imageUrl);
+    setShareOpen(true);
   };
 
   const formatDate = (timestamp: number) => {
@@ -176,6 +181,20 @@ export default function HistoryPage() {
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                      <button 
+                        className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+                        onClick={(e) => handleDownload(image, e)}
+                      >
+                        <CloudDownloadIcon sx={{ fontSize: 16, color: 'white' }} />
+                      </button>
+                      <button 
+                        className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+                        onClick={(e) => handleShare(image, e)}
+                      >
+                        <ShareIcon sx={{ fontSize: 16, color: 'white' }} />
+                      </button>
+                    </div>
                     <p className="text-sm line-clamp-2">{image.prompt}</p>
                     <div className="text-xs text-white/70 mt-1">{formatDate(image.timestamp)}</div>
                   </div>
@@ -201,12 +220,26 @@ export default function HistoryPage() {
             </button>
             
             <div className="flex flex-col md:flex-row h-full">
-              <div className="flex-1 bg-black flex items-center justify-center">
+              <div className="relative flex-1 bg-black flex items-center justify-center">
                 <img 
                   src={selectedImage.file_path} 
                   alt={selectedImage.prompt}
                   className="max-h-[60vh] md:max-h-[80vh] w-auto object-contain"
                 />
+                <div className="absolute bottom-4 right-4 flex space-x-2">
+                  <button
+                    onClick={() => handleDownload(selectedImage)}
+                    className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+                  >
+                    <CloudDownloadIcon sx={{ fontSize: 20, color: 'white' }} />
+                  </button>
+                  <button
+                    onClick={() => handleShare(selectedImage)}
+                    className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+                  >
+                    <ShareIcon sx={{ fontSize: 20, color: 'white' }} />
+                  </button>
+                </div>
               </div>
               
               <div className="w-full md:w-80 p-5 overflow-y-auto flex flex-col">
@@ -227,28 +260,19 @@ export default function HistoryPage() {
                   <h4 className="text-xs uppercase text-white/50 mb-1">Формат</h4>
                   <p className="text-sm uppercase">{selectedImage.output_format}</p>
                 </div>
-                
-                <div className="mt-auto flex space-x-3">
-                  <button
-                    onClick={() => handleDownload(selectedImage)}
-                    className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                  >
-                    <CloudDownloadIcon sx={{ fontSize: 20 }} />
-                    <span>Скачать</span>
-                  </button>
-                  <button
-                    onClick={() => handleShare(selectedImage)}
-                    className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                  >
-                    <ShareIcon sx={{ fontSize: 20 }} />
-                    <span>Поделиться</span>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
         </div>
       )}
+      
+      {/* Share component */}
+      <Share 
+        isOpen={shareOpen} 
+        onClose={() => setShareOpen(false)} 
+        url={shareUrl} 
+        title="Check out this AI-generated image!"
+      />
     </div>
   );
 }

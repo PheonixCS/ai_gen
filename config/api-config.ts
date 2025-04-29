@@ -6,10 +6,11 @@ const apiConfig = {
   // Base domain for API calls
   domain: process.env.NEXT_PUBLIC_API_URL || 'https://api.aiphotogen.com',
   clearDomain: 'https://api.aiphotogen.com',
-  NODE_ENV: "development", // Set to 'production' in production environment
+  NODE_ENV: "production", // Set to 'production' in production environment
   // Use proxy endpoints through Next.js API routes to avoid CORS issues
   proxyEnabled: true,
-  appId: "test.app1",
+  // appId: "test.app1",
+  appId: "imageni.org",
   
   // API endpoints based on documentation
   endpoints: {

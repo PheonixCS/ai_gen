@@ -8,7 +8,7 @@ import authService from '@/services/auth.service';
 function VerificationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get('email') || '';
+  const email = searchParams?.get('email') || '';
   
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
@@ -155,7 +155,7 @@ function VerificationForm() {
   );
 }
 
-export default function VerifyPage() {
+export default function VerificationPage() {
   return (
     <div className="auth-layout bg-[#0F0F0F] text-white p-4">
       <div className="auth-container w-full flex flex-col gap-8 justify-center">

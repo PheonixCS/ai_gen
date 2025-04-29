@@ -7,7 +7,7 @@ export interface Product {
   description: string;
   amount: number;
   period: number;
-  internal: string; // 'day', 'week', 'month'
+  interval: string; // 'day', 'week', 'month'
   start_day: number;
   has_trial: boolean;
   currency: string;
@@ -112,50 +112,53 @@ class PayService {
    * @returns Promise with the generated cryptogram or error
    */
   async generateCryptogram(cardInfo: CardInfo): Promise<string> {
-    // Make sure we're in a browser environment
+    // Убедимся, что мы находимся в браузерной среде
     if (typeof window === 'undefined') {
-      throw new Error('Функция доступна только в браузере');
+        throw new Error('Функция доступна только в браузере');
     }
-  
-    // First, ensure the CloudPayments SDK is loaded
-    if (!window.cp) {
-      console.log('CloudPayments SDK не загружен. Загрузка...');
-      
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.cloudpayments.ru/checkout.js';
-        script.async = true;
-        script.onload = () => {
-          // Give it a moment to initialize
-          setTimeout(resolve, 300);
-        };
-        script.onerror = () => reject(new Error('Не удалось загрузить CloudPayments SDK'));
-        document.head.appendChild(script);
-      });
-    }
-    
-    // Ensure the SDK is now loaded
-    if (!window.cp) {
-      throw new Error('CloudPayments SDK не загружен после попытки динамической загрузки');
-    }
-    
-    try {
-      // Создаем экземпляр класса CloudPayments вместо Checkout
-      const cp = new window.cp.Checkout({
-        publicId: 'pk_b9cea9e10438e90910279fea9c6c5',
-      });
-      const fieldValues = {
-        cvv: cardInfo.cvv,
-        cardNumber: cardInfo.cardNumber,
-        expDateMonth: cardInfo.expDateMonth,
-        expDateYear: cardInfo.expDateYear,
-      };
 
-      return await cp.createPaymentCryptogram(fieldValues)
-      
+    // Сначала убедимся, что SDK CloudPayments загружен
+    if (!window.cp) {
+        console.log('CloudPayments SDK не загружен. Загрузка...');
+
+        await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.cloudpayments.ru/checkout.js';
+            script.async = true;
+            script.onload = () => {
+                // Даем немного времени для инициализации
+                setTimeout(resolve, 300);
+            };
+            script.onerror = () => reject(new Error('Не удалось загрузить CloudPayments SDK'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Убедимся, что SDK теперь загружен
+    if (!window.cp) {
+        throw new Error('CloudPayments SDK не загружен после попытки динамической загрузки');
+    }
+
+    try {
+        // Создаем экземпляр класса Checkout
+        const checkout = new window.cp.Checkout({
+            publicId: 'pk_a9b8a8edc406b3641f1ffec8a8a0f',
+        });
+
+        const fieldValues = {
+            cvv: cardInfo.cvv,
+            cardNumber: cardInfo.cardNumber,
+            expDateMonth: cardInfo.expDateMonth,
+            expDateYear: cardInfo.expDateYear,
+        };
+
+        // Генерируем криптограмму
+        const cryptogram = await checkout.createPaymentCryptogram(fieldValues);
+        return cryptogram;
+
     } catch (error) {
-      console.error('Ошибка генерации криптограммы:', error);
-      throw error;
+        console.error('Ошибка генерации криптограммы:', error);
+        throw error;
     }
   }
 
@@ -208,17 +211,25 @@ class PayService {
 
   /**
    * Get a specific product by ID
+   * @param productId The ID of the product to retrieve (can be numeric id or string product_id)
    */
-  async getProductById(productId: number): Promise<Product> {
+  async getProductById(productId: number | string): Promise<Product | null> {
     try {
-      const url = `${this.proxyUrl}?endpoint=getProductById&productId=${productId}`;
-      const response = await fetch(url);
+      // First get all products
+      const products = await this.getProducts();
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Try to find by both id and product_id
+      const product = products.find(p => 
+        (typeof productId === 'number' && p.id === productId) || 
+        (typeof productId === 'string' && (p.id.toString() === productId || p.product_id === productId))
+      );
+      
+      if (!product) {
+        console.error(`Product not found. ID: ${productId}, Available products:`, 
+          products.map(p => ({ id: p.id, product_id: p.product_id })));
+        return null;
       }
       
-      const product: Product = await response.json();
       return product;
     } catch (error) {
       console.error(`Error fetching product ${productId}:`, error);
@@ -291,6 +302,50 @@ class PayService {
   }
 
   /**
+   * Process 3DS verification result received from redirect
+   */
+  // async process3DSVerification(verificationData: {
+  //   MD: string;
+  //   PaRes: string;
+  //   AppId: string;
+  // }): Promise<{
+  //   success: boolean;
+  //   message?: string;
+  //   data?: any;
+  // }> {
+  //   try {
+  //     const response = await fetch('/api/pay/verify3ds.php', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(verificationData),
+  //     });
+
+  //     const result = await response.json();
+      
+  //     if (!response.ok) {
+  //       return {
+  //         success: false,
+  //         message: result.message || 'Failed to verify 3DS',
+  //       };
+  //     }
+      
+  //     return {
+  //       success: result.success || false,
+  //       message: result.message,
+  //       data: result.data,
+  //     };
+  //   } catch (err) {
+  //     console.error('Error during 3DS verification:', err);
+  //     return {
+  //       success: false,
+  //       message: 'Technical error during 3DS verification',
+  //     };
+  //   }
+  // }
+
+  /**
    * Synchronize subscription with the main application server
    * Should be called after successful payment
    */
@@ -324,6 +379,9 @@ class PayService {
   async checkSubscription(email: string): Promise<SubscriptionResponse> {
     try {
       const url = `${this.proxyUrl}?endpoint=checkSubscription`;
+      // приведение почты к нижнему регистру
+      email = email.toLowerCase();
+      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -331,7 +389,7 @@ class PayService {
         },
         body: JSON.stringify({ 
           email, 
-          productId: 'test.test.app1' // Add default product ID
+          productId: 'web.imageni.org.week.sub' // Add default product ID
         }),
       });
       
@@ -389,6 +447,8 @@ class PayService {
   async cancelSubscription(email: string): Promise<any> {
     try {
       const url = `${this.proxyUrl}?endpoint=cancelSubscription`;
+      // приведение почты к нижнему регистру
+      email = email.toLowerCase();
       const response = await fetch(url, {
         method: 'POST',
         headers: {

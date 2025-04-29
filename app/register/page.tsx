@@ -10,7 +10,9 @@ export default function Register() {
         <Title />
 
         {/* Registration form */}
-        <RegisterForm />
+        <RegisterForm onSwitchToLogin={function (): void {
+          throw new Error("Function not implemented.");
+        } } />
         
         {/* Additional info panel - visible only on desktop */}
         <div className="hidden md:flex flex-col gap-6 mt-6 bg-[#151515] rounded-lg p-6 border border-white/8">

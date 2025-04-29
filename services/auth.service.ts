@@ -147,7 +147,21 @@ export class AuthService {
   }
 
   public getToken(): string | null {
-    return this.user?.token || null;
+    // First try to get token from user object
+    if (this.user?.token) {
+      return this.user.token;
+    }
+    
+    // If not found in user object, check localStorage
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        return token;
+      }
+    }
+    
+    // Return null if token not found
+    return null;
   }
 
   /**
@@ -496,7 +510,7 @@ export class AuthService {
         const userId = response.user?.id || response.userId || 0;
         
         // Extract subscription information
-        const subscribed = response.user?.subscribed || false;
+        const subscribed = response.user?.subscribed ?? false;
         const sub = subscribed ? 'y' : 'n'; // For backward compatibility
         const timestamp = response.timestamp || 0;
         

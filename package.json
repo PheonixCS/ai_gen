@@ -16,7 +16,9 @@
     "@mui/icons-material": "^7.0.1",
     "@mui/material": "^7.0.1",
     "axios": "^1.8.4",
+    "framer-motion": "^12.9.2",
     "next": "15.2.3",
+    "next-share": "^0.27.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -26,8 +28,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/styled-components-react-native": "^5.2.5",
+    "serve": "^14.2.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "serve": "^14.2.1"
+    "typescript": "^5"
   }
 }

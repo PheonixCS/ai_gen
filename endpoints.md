@@ -1,6 +1,6 @@
 # API Endpoints Documentation
 
-This document provides a comprehensive list of all API endpoints used by the frontend in the AI Photo Generator project. All endpoints are configured in `config/endpoints-config.ts` for centralized management.
+This document provides a comprehensive list of all API endpoints used by the frontend in the IMAGENI project. All endpoints are configured in `config/endpoints-config.ts` for centralized management.
 
 ## Configuration Structure
 

@@ -128,19 +128,20 @@ export default function SupportPage() {
           <div className="space-y-4">
             <div>
               <h3 className="font-medium mb-1">Email</h3>
-              <p className="text-white/70">support@aiphotogen.com</p>
+              <p className="text-white/70">support@imageni.org</p>
             </div>
             <div>
               <h3 className="font-medium mb-1">Время работы</h3>
               <p className="text-white/70">Пн-Пт, 10:00 - 19:00 (МСК)</p>
             </div>
-            <div>
+            {/* <div>
               <h3 className="font-medium mb-1">Часто задаваемые вопросы</h3>
               <p className="text-white/70">
                 Прежде чем обращаться в службу поддержки, ознакомьтесь с 
                 <Link href="/faq" className="text-[#58E877] hover:underline ml-1">разделом FAQ</Link>
               </p>
-            </div>
+            </div> 
+            */}
           </div>
         </div>
       </div>

@@ -2,9 +2,8 @@
 import React, { useState, useRef, useEffect } from "react"; // Added React import to fix UMD global error
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import authService from "@/services/auth.service";
-
 interface Testimonial {
   text: string;
   author: string;
@@ -57,7 +56,7 @@ const stages: Stage[] = [
       },
       { 
         title: "Идеально для проектов",
-        text: "AI Photo Gen помог мне создать потрясающие изображения для моего проекта. Рекомендую всем!", 
+        text: "IMAGENI помог мне создать потрясающие изображения для моего проекта. Рекомендую всем!", 
         author: "Анна Смирнова", 
         rating: 4.9 
       },
@@ -90,11 +89,53 @@ const isVideo = (file: string): boolean => {
 
 export default function Home() {
   const [currentStage, setCurrentStage] = useState(0);
+  const [utmCampaign, setUtmCampaign] = useState<string | null>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const router = useRouter();
-
-  // Check if user is authenticated and redirect to /home if they are
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmCampaign = urlParams.get('utm_campaign');
+    setUtmCampaign(utmCampaign);  
+  }, []);
+  
+  // Google OAuth callback handling
+  useEffect(() => {
+    // Check if we're in browser environment
+    if (typeof window !== 'undefined') {
+      // Get URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      
+      // Check if this is a Google callback for our backend auth system
+      if (code && (state === 'login_gg' || state === 'login_gg2')) {
+        console.log('Google OAuth callback detected, redirecting to login_gg.php...');
+        
+        // Redirect to login_gg.php with all original parameters
+        window.location.href = `/login_gg.php${window.location.search}`;
+        return;
+      }
+      
+      // Handle regular Google auth for Next.js app
+      if (code && state === 'google_auth') {
+        console.log('Google OAuth callback detected for Next.js app, redirecting to API...');
+        
+        // Set loading state or show spinner if needed
+        
+        // Redirect to our API endpoint with the code
+        window.location.href = `/api/auth/google.php?code=${encodeURIComponent(code)}`;
+        return;
+      }
+      
+      // Check for error parameters
+      const error = urlParams.get('error');
+      if (error) {
+        console.error('OAuth error:', error);
+        // Show error message to user if needed
+      }
+    }
+    
+    // If not a Google callback, check if user is already authenticated
     if (authService.isAuthenticated()) {
       console.log('User is already authenticated, redirecting to home page');
       router.replace('/home');
@@ -117,7 +158,8 @@ export default function Home() {
     if (currentStage < stages.length - 1) {
       setCurrentStage(currentStage + 1);
     } else {
-      window.location.href = "/register";
+      const loginUrl = utmCampaign ? `/login?utm_campaign=${utmCampaign}` : '/login';
+      router.push(loginUrl);
     }
   };
 
@@ -227,7 +269,7 @@ export default function Home() {
       </React.Fragment>
     ));
   };
-
+  
   return (
     <div className="onboarding-container bg-[#0F0F0F] text-white">
       <div className="onboarding-content">
@@ -259,7 +301,11 @@ export default function Home() {
           
           {stages[currentStage].secondaryButtonText && stages[currentStage].secondaryButtonLink && (
             <Link 
-              href={stages[currentStage].secondaryButtonLink} 
+              href={
+                utmCampaign 
+                  ? `${stages[currentStage].secondaryButtonLink}?utm_campaign=${utmCampaign}`
+                  : stages[currentStage].secondaryButtonLink!
+              }
               className="w-full py-3 rounded-lg border border-white/20 text-white/90 text-center transition-colors hover:bg-white/5"
             >
               {stages[currentStage].secondaryButtonText}

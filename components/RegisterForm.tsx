@@ -1,7 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import authService from "@/services/auth.service";
+
+// Define props interface with the onSwitchToLogin callback
+interface RegisterFormProps {
+  onSwitchToLogin: () => void;
+}
 
 // For development only - displays debug info
 const DebugInfo = ({ show }: { show: boolean }) => {
@@ -27,19 +31,27 @@ const DebugInfo = ({ show }: { show: boolean }) => {
   );
 };
 
-export default function RegisterForm() {
+export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
-    confirmPassword?: string;
   }>({});
-  
+  useEffect(() => {
+    // Получаем текущий URL
+    const currentUrl = new URL(window.location.href);
+    // Проверяем наличие параметра utm_campaign
+    const utmCampaign = currentUrl.searchParams.get('utm_campaign');
+    
+    // Если параметр присутствует, устанавливаем termsAccepted в true
+    if (utmCampaign === 'partner_5percent') {
+      setTermsAccepted(true);
+    }
+  }, []);
   // Проверка валидности email
   const validateEmail = (email: string) => {
     if (!email) return "Email обязателен";
@@ -54,19 +66,11 @@ export default function RegisterForm() {
     return "";
   };
   
-  // Проверка подтверждения пароля
-  const validateConfirmPassword = (password: string, confirmPassword: string) => {
-    if (!confirmPassword) return "Необходимо подтвердить пароль";
-    if (password !== confirmPassword) return "Пароли не совпадают";
-    return "";
-  };
-  
   // Валидация всей формы
   const validateForm = () => {
     const errors = {
       email: validateEmail(email),
-      password: validatePassword(password),
-      confirmPassword: validateConfirmPassword(password, confirmPassword)
+      password: validatePassword(password)
     };
     
     setFieldErrors(errors);
@@ -97,8 +101,8 @@ export default function RegisterForm() {
     try {
       console.log(`Submitting registration for ${email}`);
       
-      // Step 1: Initialize registration
-      const response = await authService.initiateRegistration(email, password, confirmPassword);
+      // Step 1: Initialize registration - passing the same password value twice instead of confirmPassword
+      const response = await authService.initiateRegistration(email, password, password);
       
       console.log("Registration initiated response:", response);
       
@@ -114,21 +118,6 @@ export default function RegisterForm() {
         } else {
           setError(registrationResponse.message || "Ошибка при регистрации");
         }
-        
-        // Code below is commented out but kept for future use when email verification is needed
-        /*
-        // Step 2: Send verification code
-        const verificationResponse = await authService.sendVerificationCode(email);
-        
-        console.log("Verification code sent response:", verificationResponse);
-        
-        if (verificationResponse.success) {
-          // Redirect to verification page
-          window.location.href = `/register/verify?email=${encodeURIComponent(email)}`;
-        } else {
-          setError(verificationResponse.message || "Не удалось отправить код подтверждения");
-        }
-        */
       } else {
         setError(response.message || "Ошибка при регистрации");
       }
@@ -152,16 +141,6 @@ export default function RegisterForm() {
           {error}
         </div>
       )}
-      
-      {/* <div className="bg-[#151515]/80 p-4 rounded-lg mb-2">
-        <h3 className="text-white/80 font-medium mb-2">Требования для регистрации:</h3>
-        <ul className="text-white/60 text-sm list-disc pl-5 space-y-1">
-          <li>Email должен быть действительным (например, example@mail.ru)</li>
-          <li>Пароль должен содержать минимум 6 символов</li>
-          <li>Пароли должны совпадать</li>
-          <li>Необходимо принять условия использования</li>
-        </ul>
-      </div> */}
       
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="relative">
@@ -192,21 +171,7 @@ export default function RegisterForm() {
             <div className="text-red-400 text-xs mt-1 ml-1">{fieldErrors.password}</div>
           )}
         </div>
-        
-        <div className="relative">
-          <input 
-            type="password" 
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Подтвердите пароль"
-            className={`w-full h-[42px] bg-[#151515] rounded-lg border ${fieldErrors.confirmPassword ? 'border-red-500/50' : 'border-white/8'} text-white px-4 focus:outline-none focus:border-white/30 transition-colors`}
-            required
-          />
-          {fieldErrors.confirmPassword && (
-            <div className="text-red-400 text-xs mt-1 ml-1">{fieldErrors.confirmPassword}</div>
-          )}
-        </div>
-        
+        {!termsAccepted && (
         <div className="flex items-start gap-3 mt-2">
           <div className="relative w-5 h-5">
             <input 
@@ -238,10 +203,15 @@ export default function RegisterForm() {
             </div>
           </div>
           <label htmlFor="terms" className={`text-sm transition-opacity duration-200 ${termsAccepted ? 'text-white/70' : 'text-white/40'}`}>
-            Я согласен с <span className={`hover:underline cursor-pointer ${termsAccepted ? 'text-white' : 'text-white/60'}`}>условиями использования</span> и <span className={`hover:underline cursor-pointer ${termsAccepted ? 'text-white' : 'text-white/60'}`}>Политикой конфиденциальности</span>
+            Я согласен с <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:underline cursor-pointer ${termsAccepted ? 'text-white' : 'text-white/60'}`}
+            >условиями использования</a> и <span className={`hover:underline cursor-pointer ${termsAccepted ? 'text-white' : 'text-white/60'}`}>Политикой конфиденциальности</span>
           </label>
         </div>
-        
+        )}
         <button 
           type="submit"
           disabled={isSubmitting}
@@ -253,16 +223,13 @@ export default function RegisterForm() {
       
       <div className="flex items-center justify-center gap-2 mt-4">
         <span className="text-white/50 text-sm">Уже есть аккаунт?</span>
-        <Link href="/login" className="text-sm font-medium transition-colors bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1] hover:opacity-80">
+        <button 
+          onClick={onSwitchToLogin}
+          className="text-sm font-medium transition-colors bg-clip-text text-transparent bg-gradient-to-r from-[#58E877] to-[#FFFBA1] hover:opacity-80"
+        >
           Войти
-        </Link>
+        </button>
       </div>
-      
-      {/* <div className="flex items-center justify-center mt-2">
-        <Link href="/" className="text-white/50 text-sm hover:text-white/80 transition-colors">
-          Вернуться на главную страницу
-        </Link>
-      </div> */}
       
       {/* Debug info in development mode */}
       {isDev && <DebugInfo show={false} />}

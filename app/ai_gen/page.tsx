@@ -10,9 +10,9 @@ import { aiGenerationService, ApiImagesResponse, GenerateImageParams } from '@/s
 import AspectRatioSelector from '@/components/AspectRatioSelector';
 import config from '@/config/api-config';
 import { AuthService } from '@/services/auth.service';
-import { tree } from 'next/dist/build/templates/app-page';
-import SubscriptionCard from '../../components/SubscriptionCard';
-
+import PaymentForm from '@/components/PaymentForm';
+import SubscriptionCard from '@/components/SubscriptionCard';
+import Share from '@/components/Share'; // Add this import
 type Tool = 'generate' | 'enhance' | 'background';
 
 // Define a proper interface for API error responses
@@ -32,16 +32,26 @@ export default function GenerateImagePage() {
     limit?: number;
     is_subscribed?: boolean;
   };
+  
   // Inside your component, add these state variables
   const [showAspectRatioSelector, setShowAspectRatioSelector] = useState(false);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<'1:1' | '4:3' | '16:9' | '3:4' | '9:16'>('1:1');
   const [showSubscriptionCard, setShowSubscriptionCard] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<string>('photographic'); // Default style from API docs
-
+  const [activeStyleTag, setActiveStyleTag] = useState<string>('photographic');
+  const [showShareModal, setShowShareModal] = useState(false);
   // Add this handler function
   const handleAspectRatioChange = (ratio: '1:1' | '4:3' | '16:9' | '3:4' | '9:16') => {
     setSelectedAspectRatio(ratio);
   };
+  
+  // Function to handle style change
+  const handleStyleChange = (style: string) => {
+    setSelectedStyle(style);
+    setActiveStyleTag(style);
+  };
+  
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -51,6 +61,7 @@ export default function GenerateImagePage() {
   const [error, setError] = useState<ApiError | null>(null);
   const [progress, setProgress] = useState(0);
   const [loadingTimeoutId, setLoadingTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  
   // Auto resize textarea based on content
   useEffect(() => {
     if (promptTextareaRef.current) {
@@ -111,6 +122,7 @@ export default function GenerateImagePage() {
     setIsGenerating(true);
     setError(null);
     setShowSubscriptionCard(false); // Reset subscription card visibility
+    setShowPaymentForm(false); // Reset payment form visibility
     
     // Create a variable to track if we need to show the subscription card
     let showSubCard = false;
@@ -128,7 +140,7 @@ export default function GenerateImagePage() {
         prompt: prompt,
         style_preset: selectedStyle,
         aspect_ratio: selectedAspectRatio,
-        output_format: 'png',
+        output_format: 'webp',
       };
       
       // Get user credentials for authentication
@@ -139,7 +151,7 @@ export default function GenerateImagePage() {
         const response = await aiGenerationService.generateImage(
           params,
           email,
-          password,
+          password
         );
         
         console.log('API Response:', response);
@@ -235,9 +247,9 @@ export default function GenerateImagePage() {
         setIsGenerating(false);
         setProgress(0);
         
-        // Show the subscription card if needed
+        // Show the subscription card or payment form if needed
         if (showSubCard) {
-          setShowSubscriptionCard(true);
+          setShowPaymentForm(true);
         }
       }, 7000);
     }
@@ -248,6 +260,7 @@ export default function GenerateImagePage() {
   };
 
   return (
+    
     <div className="min-h-screen bg-[#0F0F0F] text-white flex flex-col">
       {/* Header */}
       <header className="p-3 flex justify-between items-center border-b border-white/10">
@@ -274,9 +287,19 @@ export default function GenerateImagePage() {
 
       {/* Main content */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
+        {/* Share modal */}
+        {generatedImageUrl && (
+          <Share
+            url={`https://imageni.org${generatedImageUrl}`}
+            title="Смотри какое крутое изображение я сгенерировал!"
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
         {/* Prompt input area - removed visual styling */}
-        {!showSubscriptionCard && (
-        <div className="mb-6 mt-4 ml-2 mr-2">
+        {!showSubscriptionCard && !showPaymentForm && (
+          <div>
+        <div className="mb-2 mt-4 ml-2 mr-2" style={{border: '1px solid #58E877', borderRadius: '8px'}}>
           <textarea
             ref={promptTextareaRef}
             value={prompt}
@@ -286,9 +309,40 @@ export default function GenerateImagePage() {
             maxLength={1000}
             rows={3}
           ></textarea>
+          
+        </div>
+          
+          {/* Aspect ratio selector - positioned absolutely */}
+          {showAspectRatioSelector && (
+            <AspectRatioSelector
+              selectedRatio={selectedAspectRatio}
+              onSelectRatio={handleAspectRatioChange}
+              className="min-h-[155px] z-1000"
+            />
+          )}
+          <div className="flex justify-between items-center ml-10 mr-10 mt-0 mb-0 p-0">
+            <button 
+              disabled={isGenerating}
+              onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}`}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20.2201 18.3845C20.0656 18.3845 19.9403 18.2592 19.9403 18.1046V13.3377C19.9403 13.1831 20.0656 13.0579 20.2201 13.0579C20.3747 13.0579 20.5 12.9326 20.5 12.778V11.2222C20.5 11.0676 20.3747 10.9423 20.2201 10.9423C20.0656 10.9423 19.9403 10.817 19.9403 10.6625V5.89539C19.9403 5.74083 20.0656 5.61554 20.2201 5.61554C20.3747 5.61554 20.5 5.49024 20.5 5.33568V4.20833C20.5 3.81713 20.1829 3.5 19.7917 3.5H18.6643C18.5098 3.5 18.3845 3.62529 18.3845 3.77985C18.3845 3.93441 18.2592 4.05971 18.1046 4.05971H13.3709C13.2163 4.05971 13.0911 3.93441 13.0911 3.77985C13.0911 3.62529 12.9658 3.5 12.8112 3.5H11.2552C11.1006 3.5 10.9754 3.62529 10.9754 3.77985C10.9754 3.93441 10.8501 4.05971 10.6955 4.05971H5.89539C5.74083 4.05971 5.61554 3.93441 5.61554 3.77985C5.61554 3.62529 5.49024 3.5 5.33568 3.5H4.20833C3.81713 3.5 3.5 3.81713 3.5 4.20833V5.33568C3.5 5.49024 3.62529 5.61554 3.77985 5.61554C3.93441 5.61554 4.05971 5.74083 4.05971 5.89539V10.6625C4.05971 10.817 3.93441 10.9423 3.77985 10.9423C3.62529 10.9423 3.5 11.0676 3.5 11.2222V12.778C3.5 12.9326 3.62529 13.0579 3.77985 13.0579C3.93441 13.0579 4.05971 13.1831 4.05971 13.3377V18.1046C4.05971 18.2592 3.93441 18.3845 3.77985 18.3845C3.62529 18.3845 3.5 18.5098 3.5 18.6643V19.7917C3.5 20.1829 3.81713 20.5 4.20833 20.5H5.33568C5.49024 20.5 5.61554 20.3747 5.61554 20.2201C5.61554 20.0656 5.74083 19.9403 5.89539 19.9403H10.6955C10.8501 19.9403 10.9754 20.0656 10.9754 20.2201C10.9754 20.3747 11.1006 20.5 11.2552 20.5H12.8112C12.9658 20.5 13.0911 20.3747 13.0911 20.2201C13.0911 20.0656 13.2163 19.9403 13.3709 19.9403H18.1046C18.2592 19.9403 18.3845 20.0656 18.3845 20.2201C18.3845 20.3747 18.5098 20.5 18.6643 20.5H19.7917C20.1829 20.5 20.5 20.1829 20.5 19.7917V18.6643C20.5 18.5098 20.3747 18.3845 20.2201 18.3845ZM18.9442 18.3845H18.6643C18.5098 18.3845 18.3845 18.5098 18.3845 18.6643C18.3845 18.8189 18.2592 18.9442 18.1046 18.9442H13.3708C13.2163 18.9442 13.0911 18.8189 13.0911 18.6644C13.0911 18.5099 12.9658 18.3846 12.8113 18.3846H11.2551C11.1006 18.3846 10.9754 18.5099 10.9754 18.6644C10.9754 18.8189 10.8501 18.9442 10.6956 18.9442H5.89539C5.74083 18.9442 5.61554 18.8189 5.61554 18.6643C5.61554 18.5098 5.49023 18.3845 5.33568 18.3845C5.18111 18.3845 5.0558 18.2592 5.0558 18.1046V13.3377C5.0558 13.1831 5.18109 13.0579 5.33565 13.0579C5.49021 13.0579 5.6155 12.9326 5.6155 12.778V11.2222C5.6155 11.0676 5.49021 10.9423 5.33565 10.9423C5.18109 10.9423 5.0558 10.817 5.0558 10.6625V5.89539C5.0558 5.74083 5.18109 5.61554 5.33565 5.61554C5.49021 5.61554 5.6155 5.49023 5.6155 5.33568C5.6155 5.18111 5.74081 5.0558 5.89537 5.0558H10.6956C10.8501 5.0558 10.9754 5.18106 10.9754 5.33558C10.9754 5.49011 11.1006 5.61537 11.2551 5.61537H12.8113C12.9658 5.61537 13.0911 5.49011 13.0911 5.33558C13.0911 5.18106 13.2163 5.0558 13.3708 5.0558H18.1046C18.2592 5.0558 18.3845 5.18109 18.3845 5.33565C18.3845 5.49021 18.5098 5.6155 18.6643 5.6155C18.8189 5.6155 18.9442 5.7408 18.9442 5.89536V10.6624C18.9442 10.817 18.8189 10.9423 18.6643 10.9423C18.5098 10.9423 18.3845 11.0676 18.3845 11.2221V12.778C18.3845 12.9325 18.5098 13.0578 18.6643 13.0578C18.8189 13.0578 18.9442 13.1831 18.9442 13.3377V18.3844C18.9442 18.3844 18.9442 18.3845 18.9442 18.3845Z" fill="#F0F6F3"/>
+                <path d="M8.11035 8.81991C8.11035 8.4287 8.42748 8.11157 8.81868 8.11157H15.1789C15.5701 8.11157 15.8872 8.4287 15.8872 8.81991V15.1801C15.8872 15.5713 15.5701 15.8884 15.1789 15.8884H8.81868C8.42748 15.8884 8.11035 15.5713 8.11035 15.1801V8.81991Z" fill="#F0F6F3"/>
+              </svg>
+            </button>
+            {/* Кнопка "Сгенерировать" */}
+            <button 
+              onClick={handleGenerateImage}
+              disabled={isGenerating || prompt.length < 3}
+              className={`px-4 py-2 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black text-sm font-medium rounded-lg transition-transform hover:scale-[1.02] active:scale-[0.98] ${prompt.length < 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isGenerating ? 'Генерация...' : 'Сгенерировать'}
+            </button>
+          </div>
+
         </div>
         )}
-
         {/* Generated image area - removed visual styling when empty */}
         <div className="mb-8 flex justify-center items-center min-h-[300px] overflow-hidden">
           {isGenerating ? (
@@ -304,22 +358,45 @@ export default function GenerateImagePage() {
               </div>
               <p className="text-white/70">Генерация изображения... {Math.round(progress)}%</p>
             </div>
-          ) : showSubscriptionCard ? (
-            <SubscriptionCard onClose={() => setShowSubscriptionCard(false)} />
-          ) : error?.code === 403 && error.message === 'daily_limit_exceeded' ? (  
+          ) : showPaymentForm ? (
+            // Direct payment form instead of subscription card
+            <div className="w-full">
+              <PaymentForm
+                onClose={() => setShowPaymentForm(false)}
+                onSuccess={() => {
+                  setShowPaymentForm(false);
+                  // Refresh user data to reflect new subscription
+                  const authService = new AuthService();
+                  authService.refreshUserData();
+                }}
+                onError={(err) => console.error('Payment error:', err)}
+              />
+            </div>
+          ) : error?.code === 403 && (error.message === 'subscription_required' || error.message === 'daily_limit_exceeded') ? (
+            // Show product selection directly instead of subscription card
             <div className="flex flex-col items-center justify-center p-6 bg-white/5 rounded-xl max-w-md mx-auto">
-              <div className="text-red-400 font-medium mb-3 text-center">
-                Вы израсходовали лимит генераций на сегодня.
+              <div className="text-white font-medium mb-3 text-center">
+                {error.message === 'daily_limit_exceeded' ?
+                  'Вы израсходовали лимит генераций на сегодня.' :
+                  'Для неограниченного доступа оформите PRO подписку'}
               </div>
-              {/* <p className="text-white/70 text-sm mb-4 text-center">
-                Для неограниченного доступа оформите PRO подписку
-              </p> */}
-              {/* <button 
-                onClick={() => window.location.href = '/subscribe'} // Замените на ваш путь
+              
+              <button 
+                onClick={() => setShowPaymentForm(true)}
                 className="w-full py-2 sm:py-3 rounded-lg bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black font-medium text-center text-sm sm:text-base transition-transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Активировать PRO доступ
-              </button> */}
+              </button>
+              
+              <button 
+                onClick={() => {
+                  setShowPaymentForm(false);
+                  setError(null);
+                }}
+                className="mt-3 text-white/50 text-sm"
+              >
+                Отмена
+              </button>
             </div>
           ) : generatedImageUrl ? (
             <div className="w-full h-full relative">
@@ -330,11 +407,21 @@ export default function GenerateImagePage() {
               />
               {/* Нужно на изображение наложить две кнопки, скачать и поделится */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4">
+                {/* New reload page button */}
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="group bg-black/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:bg-black/50 hover:shadow-lg hover:scale-105"
+                >
+                  <AutorenewIcon 
+                    className="w-6 h-6 text-white"
+                    sx={{ fontSize: 24 }}
+                  />
+                </button>
                 <button 
                   onClick={() => {
                     const link = document.createElement('a');
-                    link.href = generatedImageUrl || '';
-                    link.download = 'generated_image.png';
+                    link.href = 'https://imageni.org' + (generatedImageUrl || '');
+                    link.download = 'generated_image.webp';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -346,16 +433,25 @@ export default function GenerateImagePage() {
                     sx={{ fontSize: 24 }}
                   />
                 </button>
-                <button 
+                {/* <button 
                   onClick={() => {
                     if (generatedImageUrl) {
-                      navigator.clipboard.writeText(generatedImageUrl)
+                      navigator.clipboard.writeText('https://imageni.org' + generatedImageUrl)
                         .then(() => console.log('Ссылка скопирована в буфер обмена!'))
                         .catch(() => console.log('Не удалось скопировать ссылку'));
                     } else {
                       console.log('Изображение не готово для sharing');
                     }
                   }}
+                  className="group bg-black/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:bg-black/50 hover:shadow-lg hover:scale-105"
+                >
+                  <ShareIcon 
+                    className="w-6 h-6 text-white"
+                    sx={{ fontSize: 24 }}
+                  />
+                </button> */}
+                <button 
+                  onClick={() => setShowShareModal(true)}
                   className="group bg-black/30 backdrop-blur-sm text-white p-3 rounded-full transition-all hover:bg-black/50 hover:shadow-lg hover:scale-105"
                 >
                   <ShareIcon 
@@ -379,12 +475,13 @@ export default function GenerateImagePage() {
       
       {/* Tools panel */}
       {/* Tools panel - Only show when subscription card is NOT displayed */}
-      {!showSubscriptionCard && (
+      {!isGenerating && !showPaymentForm && (
       <footer className="border-t border-white/10 pb-6 relative">
-        {/* Top tools row - removed background */}
+        {/* Top tools row */}
         <div className="max-w-3xl mx-auto px-4 pt-4 pb-2 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <button 
+            {/* Aspect ratio button */}
+            {/* <button 
               disabled={isGenerating}
               onClick={() => setShowAspectRatioSelector(!showAspectRatioSelector)}
               className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${isGenerating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'}`}
@@ -393,12 +490,12 @@ export default function GenerateImagePage() {
                 <path d="M20.2201 18.3845C20.0656 18.3845 19.9403 18.2592 19.9403 18.1046V13.3377C19.9403 13.1831 20.0656 13.0579 20.2201 13.0579C20.3747 13.0579 20.5 12.9326 20.5 12.778V11.2222C20.5 11.0676 20.3747 10.9423 20.2201 10.9423C20.0656 10.9423 19.9403 10.817 19.9403 10.6625V5.89539C19.9403 5.74083 20.0656 5.61554 20.2201 5.61554C20.3747 5.61554 20.5 5.49024 20.5 5.33568V4.20833C20.5 3.81713 20.1829 3.5 19.7917 3.5H18.6643C18.5098 3.5 18.3845 3.62529 18.3845 3.77985C18.3845 3.93441 18.2592 4.05971 18.1046 4.05971H13.3709C13.2163 4.05971 13.0911 3.93441 13.0911 3.77985C13.0911 3.62529 12.9658 3.5 12.8112 3.5H11.2552C11.1006 3.5 10.9754 3.62529 10.9754 3.77985C10.9754 3.93441 10.8501 4.05971 10.6955 4.05971H5.89539C5.74083 4.05971 5.61554 3.93441 5.61554 3.77985C5.61554 3.62529 5.49024 3.5 5.33568 3.5H4.20833C3.81713 3.5 3.5 3.81713 3.5 4.20833V5.33568C3.5 5.49024 3.62529 5.61554 3.77985 5.61554C3.93441 5.61554 4.05971 5.74083 4.05971 5.89539V10.6625C4.05971 10.817 3.93441 10.9423 3.77985 10.9423C3.62529 10.9423 3.5 11.0676 3.5 11.2222V12.778C3.5 12.9326 3.62529 13.0579 3.77985 13.0579C3.93441 13.0579 4.05971 13.1831 4.05971 13.3377V18.1046C4.05971 18.2592 3.93441 18.3845 3.77985 18.3845C3.62529 18.3845 3.5 18.5098 3.5 18.6643V19.7917C3.5 20.1829 3.81713 20.5 4.20833 20.5H5.33568C5.49024 20.5 5.61554 20.3747 5.61554 20.2201C5.61554 20.0656 5.74083 19.9403 5.89539 19.9403H10.6955C10.8501 19.9403 10.9754 20.0656 10.9754 20.2201C10.9754 20.3747 11.1006 20.5 11.2552 20.5H12.8112C12.9658 20.5 13.0911 20.3747 13.0911 20.2201C13.0911 20.0656 13.2163 19.9403 13.3709 19.9403H18.1046C18.2592 19.9403 18.3845 20.0656 18.3845 20.2201C18.3845 20.3747 18.5098 20.5 18.6643 20.5H19.7917C20.1829 20.5 20.5 20.1829 20.5 19.7917V18.6643C20.5 18.5098 20.3747 18.3845 20.2201 18.3845ZM18.9442 18.3845H18.6643C18.5098 18.3845 18.3845 18.5098 18.3845 18.6643C18.3845 18.8189 18.2592 18.9442 18.1046 18.9442H13.3708C13.2163 18.9442 13.0911 18.8189 13.0911 18.6644C13.0911 18.5099 12.9658 18.3846 12.8113 18.3846H11.2551C11.1006 18.3846 10.9754 18.5099 10.9754 18.6644C10.9754 18.8189 10.8501 18.9442 10.6956 18.9442H5.89539C5.74083 18.9442 5.61554 18.8189 5.61554 18.6643C5.61554 18.5098 5.49023 18.3845 5.33568 18.3845C5.18111 18.3845 5.0558 18.2592 5.0558 18.1046V13.3377C5.0558 13.1831 5.18109 13.0579 5.33565 13.0579C5.49021 13.0579 5.6155 12.9326 5.6155 12.778V11.2222C5.6155 11.0676 5.49021 10.9423 5.33565 10.9423C5.18109 10.9423 5.0558 10.817 5.0558 10.6625V5.89539C5.0558 5.74083 5.18109 5.61554 5.33565 5.61554C5.49021 5.61554 5.6155 5.49023 5.6155 5.33568C5.6155 5.18111 5.74081 5.0558 5.89537 5.0558H10.6956C10.8501 5.0558 10.9754 5.18106 10.9754 5.33558C10.9754 5.49011 11.1006 5.61537 11.2551 5.61537H12.8113C12.9658 5.61537 13.0911 5.49011 13.0911 5.33558C13.0911 5.18106 13.2163 5.0558 13.3708 5.0558H18.1046C18.2592 5.0558 18.3845 5.18109 18.3845 5.33565C18.3845 5.49021 18.5098 5.6155 18.6643 5.6155C18.8189 5.6155 18.9442 5.7408 18.9442 5.89536V10.6624C18.9442 10.817 18.8189 10.9423 18.6643 10.9423C18.5098 10.9423 18.3845 11.0676 18.3845 11.2221V12.778C18.3845 12.9325 18.5098 13.0578 18.6643 13.0578C18.8189 13.0578 18.9442 13.1831 18.9442 13.3377V18.3844C18.9442 18.3844 18.9442 18.3845 18.9442 18.3845Z" fill="#F0F6F3"/>
                 <path d="M8.11035 8.81991C8.11035 8.4287 8.42748 8.11157 8.81868 8.11157H15.1789C15.5701 8.11157 15.8872 8.4287 15.8872 8.81991V15.1801C15.8872 15.5713 15.5701 15.8884 15.1789 15.8884H8.81868C8.42748 15.8884 8.11035 15.5713 8.11035 15.1801V8.81991Z" fill="#F0F6F3"/>
               </svg>
-            </button>
+            </button> */}
             
-            {/* Кнопки действий с изображением */}
+            {/* Image action buttons */}
             {generatedImageUrl && (
               <div className="flex space-x-2">
-                {/* Удаление изображения */}
+                {/* Delete image button */}
                 <button 
                   disabled={isGenerating}
                   onClick={() => setGeneratedImageUrl(null)}
@@ -409,7 +506,7 @@ export default function GenerateImagePage() {
                   <DeleteIcon />
                 </button>
                 
-                {/* Перегенерировать */}
+                {/* Regenerate button */}
                 <button 
                   disabled={isGenerating}
                   onClick={handleGenerateImage}
@@ -421,38 +518,12 @@ export default function GenerateImagePage() {
                 </button>
               </div>
             )}
-
-            {/* <button 
-              className="w-12 h-12 rounded-lg flex items-center justify-center hover:bg-white/10 transition-all"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3.00003C10.4904 2.99801 9.00466 3.37632 7.67989 4.10003C6.35512 4.82374 5.23402 5.86954 4.42008 7.14087C3.60614 8.4122 3.1256 9.8681 3.02281 11.3742C2.92002 12.8802 3.1983 14.3879 3.83197 15.758C4.03157 16.2066 4.05302 16.7142 3.89197 17.178L3.05197 19.678C2.99418 19.8548 2.9865 20.0442 3.02977 20.2251C3.07304 20.406 3.16556 20.5714 3.29709 20.7029C3.42862 20.8344 3.594 20.927 3.77491 20.9702C3.95581 21.0135 4.14516 21.0058 4.32197 20.948L6.82197 20.108C7.28574 19.947 7.79343 19.9684 8.24197 20.168C9.46455 20.7337 10.7985 21.0177 12.1455 20.9991C13.4925 20.9805 14.8181 20.6598 16.0246 20.0606C17.2311 19.4614 18.2877 18.599 19.1165 17.537C19.9453 16.475 20.5251 15.2404 20.8131 13.9245C21.1012 12.6085 21.0902 11.2447 20.7809 9.93358C20.4716 8.62245 19.8719 7.39748 19.026 6.34902C18.1802 5.30055 17.1098 4.45534 15.8938 3.87571C14.6777 3.29608 13.3471 2.99683 12 3.00003ZM16.105 11.488L14.575 12.968C14.5199 13.0211 14.4787 13.0869 14.4548 13.1596C14.4309 13.2322 14.4251 13.3096 14.438 13.385L14.789 15.411C14.8045 15.5039 14.7938 15.5993 14.7581 15.6864C14.7223 15.7735 14.6629 15.8488 14.5866 15.904C14.5102 15.9591 14.42 15.9918 14.326 15.9983C14.2321 16.0049 14.1382 15.985 14.055 15.941L12.219 14.984C12.1511 14.9485 12.0756 14.93 11.999 14.93C11.9223 14.93 11.8469 14.9485 11.779 14.984L9.94497 15.94C9.86157 15.984 9.76755 16.0038 9.67351 15.9971C9.57947 15.9905 9.48915 15.9578 9.41273 15.9025C9.33632 15.8473 9.27684 15.7719 9.24102 15.6847C9.20519 15.5975 9.19444 15.502 9.20997 15.409L9.55997 13.385C9.57279 13.3096 9.56701 13.2322 9.54313 13.1596C9.51926 13.0869 9.47801 13.0211 9.42297 12.968L7.89297 11.488C7.83025 11.4268 7.78594 11.3492 7.76507 11.2641C7.7442 11.179 7.74759 11.0897 7.77487 11.0064C7.80214 10.9232 7.85221 10.8492 7.9194 10.7929C7.98658 10.7366 8.06819 10.7003 8.15497 10.688L10.271 10.388C10.3468 10.3773 10.419 10.3483 10.4812 10.3036C10.5433 10.2588 10.5937 10.1996 10.628 10.131L11.545 8.28803C11.587 8.20353 11.6517 8.13244 11.7319 8.08274C11.8121 8.03304 11.9046 8.00671 11.999 8.00671C12.0933 8.00671 12.1858 8.03304 12.266 8.08274C12.3462 8.13244 12.411 8.20353 12.453 8.28803L13.37 10.131C13.4042 10.1996 13.4546 10.2588 13.5168 10.3036C13.579 10.3483 13.6511 10.3773 13.727 10.388L15.843 10.688C15.9298 10.7001 16.0116 10.7363 16.0789 10.7926C16.1462 10.8488 16.1964 10.9228 16.2238 11.0061C16.2512 11.0894 16.2546 11.1787 16.2338 11.2639C16.213 11.3491 16.1687 11.4267 16.106 11.488H16.105Z" fill="#F0F6F3"/>
-              </svg>
-            </button> */}
           </div>
           
-          {/* Generate button that appears when prompt has 5+ characters */}
-          {prompt.length >= 5 && (
-            <button 
-              onClick={handleGenerateImage}
-              disabled={isGenerating}
-              className="px-4 py-2 bg-gradient-to-r from-[#58E877] to-[#FFFBA1] text-black text-sm font-medium rounded-lg transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isGenerating ? 'Генерация...' : 'Сгенерировать'}
-            </button>
-          )}
+          
         </div>
-        
-        {/* Aspect ratio selector - positioned absolutely */}
-        {showAspectRatioSelector && (
-          <AspectRatioSelector
-            selectedRatio={selectedAspectRatio}
-            onSelectRatio={handleAspectRatioChange}
-            className="min-h-[100px] z-1000"
-          />
-        )}
         {/* Bottom tools row with text */}
-        <div className="max-w-3xl mx-auto px-4 pt-2 border-t border-white/10">
+        <div className="max-w-3xl mx-auto px-4 pt-2">
           <div className="flex items-start overflow-x-auto space-x-6 py-2 no-scrollbar">
             {/* Generate Photo tool - removed border for selected tool */}
             {/* Generate Photo tool with improved interaction */}
@@ -600,9 +671,11 @@ export default function GenerateImagePage() {
             </button>
           </div>
         </div>
+        
+        
       </footer>
       )}
-     
+      
       {/* CSS for gradient text and other styling */}
       <style jsx>{`
         /* Hide scrollbar for Chrome, Safari and Opera */

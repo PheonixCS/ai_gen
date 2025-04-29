@@ -15,7 +15,7 @@ export class ApiClient {
 
   constructor(baseUrl: string = apiConfig.domain, proxyEnabled: boolean = apiConfig.proxyEnabled, useRelativePaths: boolean = true) {
     this.baseUrl = baseUrl;
-    this.proxyEnabled = proxyEnabled;
+    this.proxyEnabled = false;
     this.useRelativePaths = useRelativePaths;
   }
 
@@ -484,4 +484,5 @@ export interface ApiResponse {
 
 // Create and export default instance
 const apiClient = new ApiClient();
+apiClient.enableProxy(false); // Disable proxy by default
 export default apiClient;

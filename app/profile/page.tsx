@@ -50,24 +50,40 @@ export default function ProfilePage() {
       try {
         if (currentUser?.email) {
           // Get user data including subscribed status
-          const userData = await fetch(`/api/user?email=${currentUser.email}`)
+          const userData = await fetch(`/api/user.php?email=${currentUser.email}`)
             .then(res => res.json())
             .catch(err => {
               console.error("Error fetching user data:", err);
               return null;
             });
-
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          console.log('Stored user:', storedUser); // Debug log
+          console.log('User data:', userData);
+          // Обновляем ТОЛЬКО поле subscribed
+          const updatedUser = {
+            ...storedUser,
+            subscribed: !!userData.user.subscribed // правильный путь к данным
+          };
+          console.log('Updated user:', updatedUser); // Debug log
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+          setIsActivelySubscribed(updatedUser.subscribed);
+          console.log('Stored user:', storedUser);
+          console.log('User data:', userData);
           // Update user state with subscribed status - fix type error
-          if (userData) {
-            setUser(prev => {
-              if (!prev) return prev;
-              return {
-                ...prev,
-                subscribed: !!userData.subscribed // Ensure boolean type
-              };
-            });
-            setIsActivelySubscribed(!!userData.subscribed);
-          }
+          // if (userData) {
+          //   setUser(prev => {
+          //     if (!prev) return prev;
+          //     return {
+          //       ...prev,
+          //       subscribed: !!userData.user.subscribed // Ensure boolean type
+          //     };
+          //   });
+          //   setIsActivelySubscribed(!!userData.subscribed);
+          //   // обновление данных в локальном хранилище
+          //   // localStorage.setItem('user', JSON.stringify({ ...currentUser, subscribed: !!userData.subscribed }));
+          // }
+          
 
           // Check subscription with payment service
           const subscription = await payService.checkSubscription(currentUser.email);
@@ -487,7 +503,7 @@ export default function ProfilePage() {
         </section>
 
         {/* Purchase options - add ref here */}
-        {currentPlan === 'free' && (
+        {(currentPlan === 'free' || (currentPlan ==='pro' && !isActivelySubscribed)) && (
           <section ref={productSectionRef} className="bg-[#151515] rounded-xl p-4 sm:p-6 mb-4 sm:mb-8">
             <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6">Получить PRO доступ</h2>
             {loadingProducts ? (
@@ -499,7 +515,7 @@ export default function ProfilePage() {
                 Не удалось загрузить доступные тарифы. Пожалуйста, попробуйте позже.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
                 {products.map((product) => (
                   <div
                     key={product.id}
@@ -512,7 +528,7 @@ export default function ProfilePage() {
                   >
                     <div className="flex justify-between items-center mb-2 sm:mb-3">
                       <h3 className="font-medium text-sm sm:text-base">
-                        PRO на {product.period} {product.internal === 'day' ? 'дней' : product.internal === 'week' ? 'недель' : 'месяцев'}
+                        PRO на {product.period} {product.interval === 'day' ? 'дней' : product.interval === 'week' ? 'недель' : 'месяцев'}
                       </h3>
                       <div className="flex items-center">
                         {product.has_trial && (
@@ -555,12 +571,12 @@ export default function ProfilePage() {
               </svg>
               Политика конфиденциальности
             </Link>
-            <Link href="/legal/terms" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
+            <Link href="/legal/contact" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Условия использования
+              Контакты
             </Link>
             <Link href="/legal/offer" className="text-white/70 hover:text-white flex items-center gap-2 text-sm sm:text-base">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
